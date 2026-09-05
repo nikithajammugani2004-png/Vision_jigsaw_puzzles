@@ -5,9 +5,9 @@ export class HandTracker {
     this.video = videoElement;
     this.callback = onResultsCallback;
 
-    // Smoothed cursor coordinates (0.0 to 1.0)
-    this.filterX = new LowPassFilter(0.5);
-    this.filterY = new LowPassFilter(0.5);
+    // Responsive low-pass smoothing (alpha = 0.55 balances responsiveness & jitter)
+    this.filterX = new LowPassFilter(0.55);
+    this.filterY = new LowPassFilter(0.55);
 
     this.cursor = {
       x: 0.5,
@@ -18,11 +18,11 @@ export class HandTracker {
 
     this.landmarks = null;
     this.hands = null;
-    this.camera = null;
+    this.isProcessing = false;
 
-    // Hysteresis thresholds for stable grab & release
-    this.PINCH_START_THRESHOLD = 0.085;  // Easy to grab
-    this.PINCH_RELEASE_THRESHOLD = 0.125; // Hard to accidentally drop
+    // Hysteresis pinch triggers (normalized coords)
+    this.PINCH_START_THRESHOLD = 0.085;
+    this.PINCH_RELEASE_THRESHOLD = 0.13;
   }
 
   async init() {
@@ -30,37 +30,59 @@ export class HandTracker {
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
     });
 
+    // Model complexity 0 (Lite) provides major speed boost while maintaining landmark accuracy
     this.hands.setOptions({
       maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.65,
-      minTrackingConfidence: 0.65
+      modelComplexity: 0,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.6
     });
 
     this.hands.onResults((results) => this.handleResults(results));
 
-    // Initialize camera stream
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          frameRate: { ideal: 30 }
-        }
-      });
-      this.video.srcObject = stream;
-      await this.video.play();
-
-      this.camera = new Camera(this.video, {
-        onFrame: async () => {
-          if (this.video && this.video.readyState >= 2) {
-            await this.hands.send({ image: this.video });
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            frameRate: { ideal: 30 }
           }
-        },
-        width: 640,
-        height: 480
-      });
-      this.camera.start();
+        });
+        this.video.srcObject = stream;
+        await this.video.play();
+
+        this.startProcessingLoop();
+      } catch (err) {
+        console.error("Camera access error:", err);
+      }
+    }
+  }
+
+  startProcessingLoop() {
+    const processFrame = async () => {
+      if (this.video && this.video.readyState >= 2 && !this.isProcessing) {
+        this.isProcessing = true;
+        try {
+          await this.hands.send({ image: this.video });
+        } catch (err) {
+          // Frame drop safe
+        } finally {
+          this.isProcessing = false;
+        }
+      }
+
+      if ("requestVideoFrameCallback" in this.video) {
+        this.video.requestVideoFrameCallback(processFrame);
+      } else {
+        requestAnimationFrame(processFrame);
+      }
+    };
+
+    if ("requestVideoFrameCallback" in this.video) {
+      this.video.requestVideoFrameCallback(processFrame);
+    } else {
+      requestAnimationFrame(processFrame);
     }
   }
 
@@ -72,7 +94,7 @@ export class HandTracker {
       const thumbTip = landmarks[4];
       const indexTip = landmarks[8];
 
-      // Mirror X so moving right moves right on screen
+      // Mirror X coordinates for webcam feedback
       const rawX = 1 - (thumbTip.x + indexTip.x) / 2;
       const rawY = (thumbTip.y + indexTip.y) / 2;
 
@@ -85,7 +107,6 @@ export class HandTracker {
       );
       this.cursor.pinchDistance = pinchDist;
 
-      // Hysteresis pinch trigger
       if (!this.cursor.isPinching) {
         if (pinchDist <= this.PINCH_START_THRESHOLD) {
           this.cursor.isPinching = true;
@@ -115,17 +136,17 @@ export class HandTracker {
       y: lm.y * canvasHeight
     }));
 
-    // Hand connections
     const connections = [
-      [0, 1], [1, 2], [2, 3], [3, 4],       // Thumb
-      [0, 5], [5, 6], [6, 7], [7, 8],       // Index
-      [0, 9], [9, 10], [10, 11], [11, 12],  // Middle
-      [0, 13], [13, 14], [14, 15], [15, 16],// Ring
-      [0, 17], [17, 18], [18, 19], [19, 20],// Pinky
-      [5, 9], [9, 13], [13, 17]             // Palm base
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      [0, 9], [9, 10], [10, 11], [11, 12],
+      [0, 13], [13, 14], [14, 15], [15, 16],
+      [0, 17], [17, 18], [18, 19], [19, 20],
+      [5, 9], [9, 13], [13, 17]
     ];
 
-    ctx.strokeStyle = "rgba(168, 85, 247, 0.45)"; // Sleek purple skeleton
+    // Neon skeletal connections
+    ctx.strokeStyle = "rgba(168, 85, 247, 0.55)";
     ctx.lineWidth = 2.5;
 
     for (const [start, end] of connections) {
@@ -139,16 +160,16 @@ export class HandTracker {
     for (let i = 0; i < points.length; i++) {
       ctx.beginPath();
       ctx.arc(points[i].x, points[i].y, 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = i === 4 || i === 8 ? "#38bdf8" : "rgba(226, 232, 240, 0.85)";
+      ctx.fillStyle = (i === 4 || i === 8) ? "#38bdf8" : "rgba(241, 245, 249, 0.9)";
       ctx.fill();
     }
 
-    // Pinch Target Indicator
+    // Interaction target cursor
     const cursorPixelX = this.cursor.x * canvasWidth;
     const cursorPixelY = this.cursor.y * canvasHeight;
 
     ctx.beginPath();
-    ctx.arc(cursorPixelX, cursorPixelY, this.cursor.isPinching ? 9 : 14, 0, Math.PI * 2);
+    ctx.arc(cursorPixelX, cursorPixelY, this.cursor.isPinching ? 10 : 14, 0, Math.PI * 2);
     ctx.lineWidth = 2.5;
     ctx.strokeStyle = this.cursor.isPinching ? "#22c55e" : "#38bdf8";
     ctx.stroke();
