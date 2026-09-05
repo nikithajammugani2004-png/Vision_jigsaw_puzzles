@@ -3,35 +3,30 @@ import { LowPassFilter, getDistance } from "./utils.js";
 export class HandTracker {
   constructor(videoElement, onResultsCallback) {
     this.video = videoElement;
-    this.onResultsCallback = onResultsCallback;
+    this.callback = onResultsCallback;
 
-    // Smoothed pinch cursor state
+    // Smoothed cursor coordinates (0.0 to 1.0)
+    this.filterX = new LowPassFilter(0.5);
+    this.filterY = new LowPassFilter(0.5);
+
     this.cursor = {
-      x: 0,
-      y: 0,
-      isPinching: false
+      x: 0.5,
+      y: 0.5,
+      isPinching: false,
+      pinchDistance: 1.0
     };
 
-    // Low-pass filters for smoothing jitter
-    this.filterX = new LowPassFilter(0.65);
-    this.filterY = new LowPassFilter(0.65);
-
-    this.rawLandmarks = null;
+    this.landmarks = null;
     this.hands = null;
     this.camera = null;
 
-    // Thresholds
-    this.pinchThreshold = 0.055;
-    this.releaseThreshold = 0.075;
+    // Hysteresis thresholds for stable grab & release
+    this.PINCH_START_THRESHOLD = 0.085;  // Easy to grab
+    this.PINCH_RELEASE_THRESHOLD = 0.125; // Hard to accidentally drop
   }
 
   async init() {
-    if (!window.Hands || !window.Camera) {
-      console.error("MediaPipe Hands or Camera script not loaded from CDN.");
-      return;
-    }
-
-    this.hands = new window.Hands({
+    this.hands = new Hands({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
     });
 
@@ -44,127 +39,125 @@ export class HandTracker {
 
     this.hands.onResults((results) => this.handleResults(results));
 
-    // Request camera feed
-    try {
-      this.camera = new window.Camera(this.video, {
-        onFrame: async () => {
-          await this.hands.send({ image: this.video });
-        },
-        width: 1280,
-        height: 720
+    // Initialize camera stream
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 30 }
+        }
       });
-      await this.camera.start();
-    } catch (err) {
-      console.warn("Webcam access denied or unavailable. Running in mouse fallback mode.", err);
+      this.video.srcObject = stream;
+      await this.video.play();
+
+      this.camera = new Camera(this.video, {
+        onFrame: async () => {
+          if (this.video && this.video.readyState >= 2) {
+            await this.hands.send({ image: this.video });
+          }
+        },
+        width: 640,
+        height: 480
+      });
+      this.camera.start();
     }
   }
 
   handleResults(results) {
-    if (this.onResultsCallback) {
-      this.onResultsCallback(results.image);
-    }
-
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-      this.rawLandmarks = results.multiHandLandmarks[0];
+      const landmarks = results.multiHandLandmarks[0];
+      this.landmarks = landmarks;
 
-      // Landmark 4: Thumb Tip | Landmark 8: Index Tip
-      const thumb = this.rawLandmarks[4];
-      const index = this.rawLandmarks[8];
+      const thumbTip = landmarks[4];
+      const indexTip = landmarks[8];
 
-      // Horizontal flip to match mirrored selfie webcam
-      const mirroredThumbX = 1 - thumb.x;
-      const mirroredIndexX = 1 - index.x;
+      // Mirror X so moving right moves right on screen
+      const rawX = 1 - (thumbTip.x + indexTip.x) / 2;
+      const rawY = (thumbTip.y + indexTip.y) / 2;
 
-      const pinchCenterNormX = (mirroredThumbX + mirroredIndexX) / 2;
-      const pinchCenterNormY = (thumb.y + index.y) / 2;
+      this.cursor.x = this.filterX.filter(rawX);
+      this.cursor.y = this.filterY.filter(rawY);
 
-      // Filtered cursor coordinates (normalized 0 to 1)
-      this.cursor.x = this.filterX.filter(pinchCenterNormX);
-      this.cursor.y = this.filterY.filter(pinchCenterNormY);
-
-      // Measure Euclidean distance between thumb and index tips
-      const dist = getDistance(
-        { x: thumb.x, y: thumb.y },
-        { x: index.x, y: index.y }
+      const pinchDist = getDistance(
+        { x: thumbTip.x, y: thumbTip.y },
+        { x: indexTip.x, y: indexTip.y }
       );
+      this.cursor.pinchDistance = pinchDist;
 
-      // Hysteresis thresholding to prevent fluttering
-      if (this.cursor.isPinching) {
-        if (dist > this.releaseThreshold) {
-          this.cursor.isPinching = false;
+      // Hysteresis pinch trigger
+      if (!this.cursor.isPinching) {
+        if (pinchDist <= this.PINCH_START_THRESHOLD) {
+          this.cursor.isPinching = true;
         }
       } else {
-        if (dist < this.pinchThreshold) {
-          this.cursor.isPinching = true;
+        if (pinchDist > this.PINCH_RELEASE_THRESHOLD) {
+          this.cursor.isPinching = false;
         }
       }
     } else {
-      this.rawLandmarks = null;
+      this.landmarks = null;
       this.cursor.isPinching = false;
+    }
+
+    if (this.callback) {
+      this.callback(this.cursor);
     }
   }
 
   drawHandSkeleton(ctx, canvasWidth, canvasHeight) {
-    if (!this.rawLandmarks) return;
+    if (!this.landmarks) return;
 
-    // Project normalized cursor to actual canvas pixels
-    const px = this.cursor.x * canvasWidth;
-    const py = this.cursor.y * canvasHeight;
+    ctx.save();
 
-    // Convert raw landmarks to mirrored pixel coordinates
-    const points = this.rawLandmarks.map((lm) => ({
+    const points = this.landmarks.map((lm) => ({
       x: (1 - lm.x) * canvasWidth,
       y: lm.y * canvasHeight
     }));
 
-    // Standard 21 MediaPipe hand connections
+    // Hand connections
     const connections = [
       [0, 1], [1, 2], [2, 3], [3, 4],       // Thumb
       [0, 5], [5, 6], [6, 7], [7, 8],       // Index
-      [5, 9], [9, 10], [10, 11], [11, 12],  // Middle
-      [9, 13], [13, 14], [14, 15], [15, 16],// Ring
-      [13, 17], [17, 18], [18, 19], [19, 20], // Pinky
-      [0, 17]                               // Palm base
+      [0, 9], [9, 10], [10, 11], [11, 12],  // Middle
+      [0, 13], [13, 14], [14, 15], [15, 16],// Ring
+      [0, 17], [17, 18], [18, 19], [19, 20],// Pinky
+      [5, 9], [9, 13], [13, 17]             // Palm base
     ];
 
-    ctx.save();
+    ctx.strokeStyle = "rgba(168, 85, 247, 0.45)"; // Sleek purple skeleton
+    ctx.lineWidth = 2.5;
 
-    // Draw skeletal bones
-    ctx.strokeStyle = "rgba(56, 189, 248, 0.4)";
-    ctx.lineWidth = 3;
-    for (const [startIdx, endIdx] of connections) {
-      const p1 = points[startIdx];
-      const p2 = points[endIdx];
+    for (const [start, end] of connections) {
       ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
+      ctx.moveTo(points[start].x, points[start].y);
+      ctx.lineTo(points[end].x, points[end].y);
       ctx.stroke();
     }
 
-    // Draw joint nodes
-    for (const pt of points) {
+    // Joints
+    for (let i = 0; i < points.length; i++) {
       ctx.beginPath();
-      ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = "#c084fc";
+      ctx.arc(points[i].x, points[i].y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = i === 4 || i === 8 ? "#38bdf8" : "rgba(226, 232, 240, 0.85)";
       ctx.fill();
     }
 
-    // Draw Pinch Cursor Indicator
+    // Pinch Target Indicator
+    const cursorPixelX = this.cursor.x * canvasWidth;
+    const cursorPixelY = this.cursor.y * canvasHeight;
+
     ctx.beginPath();
-    ctx.arc(px, py, this.cursor.isPinching ? 14 : 22, 0, Math.PI * 2);
+    ctx.arc(cursorPixelX, cursorPixelY, this.cursor.isPinching ? 9 : 14, 0, Math.PI * 2);
+    ctx.lineWidth = 2.5;
     ctx.strokeStyle = this.cursor.isPinching ? "#22c55e" : "#38bdf8";
-    ctx.lineWidth = 3;
     ctx.stroke();
 
-    ctx.beginPath();
-    ctx.arc(px, py, 6, 0, Math.PI * 2);
-    ctx.fillStyle = this.cursor.isPinching ? "#22c55e" : "#38bdf8";
-    ctx.fill();
+    if (this.cursor.isPinching) {
+      ctx.fillStyle = "rgba(34, 197, 94, 0.4)";
+      ctx.fill();
+    }
 
     ctx.restore();
-
-    // Map screen pixel space back into interaction coordinates
-    this.cursor.x = px;
-    this.cursor.y = py;
   }
 }
