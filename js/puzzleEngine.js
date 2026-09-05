@@ -21,7 +21,7 @@ export class PuzzlePiece {
     this.isSnapped = false;
     this.isHovered = false;
 
-    // 0: flat, 1: tab outwards, -1: tab inwards
+    // 0: flat border, 1: outward tab, -1: inward socket
     this.tabs = {
       top: 0,
       right: 0,
@@ -34,7 +34,7 @@ export class PuzzlePiece {
     ctx.save();
 
     if (!this.isSnapped) {
-      ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+      ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
       ctx.shadowBlur = 12;
       ctx.shadowOffsetX = 3;
       ctx.shadowOffsetY = 3;
@@ -45,21 +45,26 @@ export class PuzzlePiece {
 
     ctx.save();
     ctx.clip();
+    // Expand crop drawing slightly so the tabs receive full image texture
+    const bleed = Math.max(this.width, this.height) * 0.28;
+    const sBleedX = (bleed / this.width) * this.sWidth;
+    const sBleedY = (bleed / this.height) * this.sHeight;
+
     ctx.drawImage(
       img,
-      this.sx,
-      this.sy,
-      this.sWidth,
-      this.sHeight,
-      this.currentX,
-      this.currentY,
-      this.width,
-      this.height
+      Math.max(0, this.sx - sBleedX),
+      Math.max(0, this.sy - sBleedY),
+      Math.min(img.naturalWidth - this.sx + sBleedX, this.sWidth + sBleedX * 2),
+      Math.min(img.naturalHeight - this.sy + sBleedY, this.sHeight + sBleedY * 2),
+      this.currentX - bleed,
+      this.currentY - bleed,
+      this.width + bleed * 2,
+      this.height + bleed * 2
     );
     ctx.restore();
 
     ctx.strokeStyle = this.isSnapped
-      ? "rgba(56, 189, 248, 0.4)"
+      ? "rgba(56, 189, 248, 0.3)"
       : this.isHovered
       ? "#38bdf8"
       : "rgba(255, 255, 255, 0.35)";
@@ -70,74 +75,74 @@ export class PuzzlePiece {
   }
 
   createPath(ctx, x, y, w, h) {
-    const tabRadius = Math.min(w, h) * 0.18;
+    const tabSize = Math.min(w, h) * 0.22;
 
     ctx.moveTo(x, y);
 
-    // Top
+    // Top Edge (outward tab points UP, so -y)
     if (this.tabs.top !== 0) {
-      const sign = -this.tabs.top;
+      const dir = this.tabs.top; // 1 = up (-), -1 = down (+)
       ctx.lineTo(x + w * 0.38, y);
       ctx.bezierCurveTo(
-        x + w * 0.36, y + tabRadius * sign * 0.4,
-        x + w * 0.42, y + tabRadius * sign * 1.25,
-        x + w * 0.5, y + tabRadius * sign * 1.25
+        x + w * 0.36, y - tabSize * dir * 0.2,
+        x + w * 0.32, y - tabSize * dir * 1.1,
+        x + w * 0.5,  y - tabSize * dir * 1.1
       );
       ctx.bezierCurveTo(
-        x + w * 0.58, y + tabRadius * sign * 1.25,
-        x + w * 0.64, y + tabRadius * sign * 0.4,
+        x + w * 0.68, y - tabSize * dir * 1.1,
+        x + w * 0.64, y - tabSize * dir * 0.2,
         x + w * 0.62, y
       );
     }
     ctx.lineTo(x + w, y);
 
-    // Right
+    // Right Edge (outward tab points RIGHT, so +x)
     if (this.tabs.right !== 0) {
-      const sign = this.tabs.right;
+      const dir = this.tabs.right; // 1 = right (+), -1 = left (-)
       ctx.lineTo(x + w, y + h * 0.38);
       ctx.bezierCurveTo(
-        x + w + tabRadius * sign * 0.4, y + h * 0.36,
-        x + w + tabRadius * sign * 1.25, y + h * 0.42,
-        x + w + tabRadius * sign * 1.25, y + h * 0.5
+        x + w + tabSize * dir * 0.2, y + h * 0.36,
+        x + w + tabSize * dir * 1.1, y + h * 0.32,
+        x + w + tabSize * dir * 1.1, y + h * 0.5
       );
       ctx.bezierCurveTo(
-        x + w + tabRadius * sign * 1.25, y + h * 0.58,
-        x + w + tabRadius * sign * 0.4, y + h * 0.64,
-        x + w, y + h * 0.62
+        x + w + tabSize * dir * 1.1, y + h * 0.68,
+        x + w + tabSize * dir * 0.2, y + h * 0.64,
+        x + w,                       y + h * 0.62
       );
     }
     ctx.lineTo(x + w, y + h);
 
-    // Bottom
+    // Bottom Edge (outward tab points DOWN, so +y)
     if (this.tabs.bottom !== 0) {
-      const sign = this.tabs.bottom;
+      const dir = this.tabs.bottom; // 1 = down (+), -1 = up (-)
       ctx.lineTo(x + w * 0.62, y + h);
       ctx.bezierCurveTo(
-        x + w * 0.64, y + h + tabRadius * sign * 0.4,
-        x + w * 0.58, y + h + tabRadius * sign * 1.25,
-        x + w * 0.5, y + h + tabRadius * sign * 1.25
+        x + w * 0.64, y + h + tabSize * dir * 0.2,
+        x + w * 0.68, y + h + tabSize * dir * 1.1,
+        x + w * 0.5,  y + h + tabSize * dir * 1.1
       );
       ctx.bezierCurveTo(
-        x + w * 0.42, y + h + tabRadius * sign * 1.25,
-        x + w * 0.36, y + h + tabRadius * sign * 0.4,
+        x + w * 0.32, y + h + tabSize * dir * 1.1,
+        x + w * 0.36, y + h + tabSize * dir * 0.2,
         x + w * 0.38, y + h
       );
     }
     ctx.lineTo(x, y + h);
 
-    // Left
+    // Left Edge (outward tab points LEFT, so -x)
     if (this.tabs.left !== 0) {
-      const sign = -this.tabs.left;
+      const dir = this.tabs.left; // 1 = left (-), -1 = right (+)
       ctx.lineTo(x, y + h * 0.62);
       ctx.bezierCurveTo(
-        x + tabRadius * sign * 0.4, y + h * 0.64,
-        x + tabRadius * sign * 1.25, y + h * 0.58,
-        x + tabRadius * sign * 1.25, y + h * 0.5
+        x - tabSize * dir * 0.2, y + h * 0.64,
+        x - tabSize * dir * 1.1, y + h * 0.68,
+        x - tabSize * dir * 1.1, y + h * 0.5
       );
       ctx.bezierCurveTo(
-        x + tabRadius * sign * 1.25, y + h * 0.42,
-        x + tabRadius * sign * 0.4, y + h * 0.36,
-        x, y + h * 0.38
+        x - tabSize * dir * 1.1, y + h * 0.32,
+        x - tabSize * dir * 0.2, y + h * 0.36,
+        x,                       y + h * 0.38
       );
     }
     ctx.closePath();
@@ -165,7 +170,6 @@ export class PuzzleEngine {
     this.image = image;
     this.pieces = [];
 
-    // 4x4 grid (16 pieces) matches the video
     this.gridRows = 4;
     this.gridCols = 4;
 
@@ -198,7 +202,6 @@ export class PuzzleEngine {
         piece.targetX = this.boardX + c * pieceW;
         piece.targetY = this.boardY + r * pieceH;
 
-        // Scatter pieces left and right outside the central board
         const placeLeft = Math.random() < 0.5;
         const scatterX = placeLeft
           ? Math.random() * Math.max(20, this.boardX - pieceW - 40) + 15
@@ -213,11 +216,12 @@ export class PuzzleEngine {
       }
     }
 
-    // Build interlocking matching tabs
+    // Build complementary tabs: if piece has tab (+1), neighbor has socket (-1)
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
         const piece = this.getPieceByGrid(r, c);
 
+        // Right / Left neighbor
         if (c < this.gridCols - 1) {
           const tab = Math.random() < 0.5 ? 1 : -1;
           piece.tabs.right = tab;
@@ -225,6 +229,7 @@ export class PuzzleEngine {
           if (neighbor) neighbor.tabs.left = -tab;
         }
 
+        // Bottom / Top neighbor
         if (r < this.gridRows - 1) {
           const tab = Math.random() < 0.5 ? 1 : -1;
           piece.tabs.bottom = tab;
@@ -245,10 +250,10 @@ export class PuzzleEngine {
       if (
         !piece.isSnapped &&
         isPointInRect({ x, y }, {
-          x: piece.currentX,
-          y: piece.currentY,
-          width: piece.width,
-          height: piece.height
+          x: piece.currentX - piece.width * 0.2,
+          y: piece.currentY - piece.height * 0.2,
+          width: piece.width * 1.4,
+          height: piece.height * 1.4
         })
       ) {
         return piece;
@@ -326,7 +331,7 @@ export class PuzzleEngine {
     ctx.lineWidth = 2.5;
     ctx.strokeRect(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
 
-    // Inner jigsaw puzzle outline slots
+    // Grid slots matching piece curves exactly
     ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
     ctx.lineWidth = 1.2;
 
