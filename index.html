@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vision Jigsaw Studio</title>
+  <title>Vision Jigsaw</title>
   <link rel="stylesheet" href="css/style.css" />
 
   <!-- MediaPipe CDN Dependencies -->
@@ -12,31 +12,17 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
-  <!-- Main Game Entry -->
+  <!-- Main Entry -->
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
-  <!-- Header Bar -->
-  <header class="app-header">
-    <div class="brand">
-      <span class="brand-icon">🧩</span>
-      <h1>Vision Jigsaw <span class="accent">Studio</span></h1>
-    </div>
-    <div class="status-badge" id="camera-status">
-      <span class="status-dot"></span>
-      <span id="mode-text">Status: Ready</span>
-    </div>
-  </header>
-
-  <!-- Main Viewport Layout -->
   <main class="main-container">
-    <!-- Game Board & Webcam Canvas -->
+    <!-- Jigsaw & Vision Canvas -->
     <div class="canvas-wrapper">
       <video id="webcam-feed" autoplay playsinline muted style="display: none;"></video>
-      <canvas id="bg-watermark-canvas" style="display: none;"></canvas>
       <canvas id="game-canvas"></canvas>
 
-      <!-- Level Complete Modal -->
+      <!-- Win Banner -->
       <div id="level-banner" class="banner banner-hidden">
         <div class="banner-card">
           <h2>Level Complete! 🎉</h2>
@@ -47,21 +33,10 @@
           </div>
         </div>
       </div>
-
-      <!-- Pause Modal -->
-      <div id="pause-banner" class="banner banner-hidden">
-        <div class="banner-card">
-          <h2>Game Paused</h2>
-          <div class="banner-actions">
-            <button id="btn-resume" class="btn btn-primary">Resume</button>
-          </div>
-        </div>
-      </div>
     </div>
 
-    <!-- Sidebar Dashboard -->
+    <!-- Right Sidebar matching the video -->
     <aside class="sidebar">
-      <!-- Goal Preview -->
       <section class="sidebar-section">
         <h3>GOAL PREVIEW</h3>
         <div class="preview-container">
@@ -69,63 +44,39 @@
         </div>
       </section>
 
-      <!-- Game Controls -->
       <section class="sidebar-section">
-        <h3>GAME CONTROLS</h3>
-        <div class="control-group switch-group">
+        <h3>DISPLAY SETTINGS</h3>
+        <div class="control-row">
           <span>Isolate Skeleton Only</span>
           <label class="switch">
-            <input type="checkbox" id="skeleton-toggle" />
+            <input type="checkbox" id="skeleton-toggle" checked />
             <span class="slider"></span>
           </label>
         </div>
-        <div class="control-actions">
-          <button id="btn-pause" class="btn btn-ctrl">⏸ Pause</button>
-          <button id="btn-restart-level" class="btn btn-ctrl">🔄 Restart Level</button>
-          <button id="btn-restart-game" class="btn btn-danger">⚠️ Restart</button>
-        </div>
       </section>
 
-      <!-- Game Info Metrics -->
       <section class="sidebar-section">
         <h3>GAME INFO</h3>
-        <div class="stat-row">
-          <span class="stat-label">Level</span>
-          <span id="level-indicator" class="stat-value highlight">LEVEL 1</span>
+        <div class="stat-pill">
+          <span class="label">Level</span>
+          <span id="level-indicator" class="value cyan">LEVEL 1</span>
         </div>
-        <div class="stat-row">
-          <span class="stat-label">Remaining Pieces</span>
-          <span id="remaining-pieces" class="stat-value">0 / 0</span>
+        <div class="stat-pill">
+          <span class="label">Remaining Pieces</span>
+          <span id="remaining-pieces" class="value cyan">1 / 16</span>
         </div>
-        <div class="stat-row">
-          <span class="stat-label">Timer</span>
-          <span id="timer-display" class="stat-value">00:00</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Performance</span>
-          <span id="fps-display" class="stat-value">0 FPS</span>
+        <div class="stat-pill">
+          <span class="label">Performance</span>
+          <span id="fps-display" class="value purple">35</span>
         </div>
       </section>
 
-      <!-- Leaderboard -->
-      <section class="sidebar-section">
-        <div class="section-header">
-          <h3>LEADERBOARD</h3>
-          <button id="btn-reset-leaderboard" class="link-btn">RESET</button>
-        </div>
-        <div id="scoreboard-list" class="score-container">
-          <div class="empty-score">No records yet</div>
-        </div>
-      </section>
-
-      <!-- Instructions -->
       <section class="sidebar-section instructions">
         <h3>HOW TO PLAY</h3>
         <ul>
           <li>Pinch index and thumb to grab a piece.</li>
-          <li>Move the piece towards the center grid.</li>
-          <li>Release near the matching tile to snap it in!</li>
-          <li>Mouse drag works as a fallback anytime.</li>
+          <li>Drag it over its matching puzzle slot.</li>
+          <li>Release pinch to snap into place.</li>
         </ul>
       </section>
     </aside>

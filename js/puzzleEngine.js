@@ -6,13 +6,11 @@ export class PuzzlePiece {
     this.row = row;
     this.col = col;
 
-    // Image crop coordinates
     this.sx = sx;
     this.sy = sy;
     this.sWidth = sWidth;
     this.sHeight = sHeight;
 
-    // Board / render metrics
     this.width = 0;
     this.height = 0;
     this.targetX = 0;
@@ -23,7 +21,7 @@ export class PuzzlePiece {
     this.isSnapped = false;
     this.isHovered = false;
 
-    // Jigsaw edge tabs: 0: flat (border), 1: outer tab, -1: inner socket
+    // 0: flat, 1: tab outwards, -1: tab inwards
     this.tabs = {
       top: 0,
       right: 0,
@@ -35,12 +33,11 @@ export class PuzzlePiece {
   draw(ctx, img) {
     ctx.save();
 
-    // Subtle drop shadow for loose pieces
     if (!this.isSnapped) {
-      ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetX = 4;
-      ctx.shadowOffsetY = 4;
+      ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetX = 3;
+      ctx.shadowOffsetY = 3;
     }
 
     ctx.beginPath();
@@ -61,12 +58,11 @@ export class PuzzlePiece {
     );
     ctx.restore();
 
-    // Outline
     ctx.strokeStyle = this.isSnapped
-      ? "rgba(56, 189, 248, 0.25)"
+      ? "rgba(56, 189, 248, 0.4)"
       : this.isHovered
       ? "#38bdf8"
-      : "rgba(255, 255, 255, 0.5)";
+      : "rgba(255, 255, 255, 0.35)";
     ctx.lineWidth = this.isHovered ? 2.5 : 1.5;
     ctx.stroke();
 
@@ -74,74 +70,73 @@ export class PuzzlePiece {
   }
 
   createPath(ctx, x, y, w, h) {
-    const tabW = w * 0.22;
-    const tabH = h * 0.22;
+    const tabRadius = Math.min(w, h) * 0.18;
 
     ctx.moveTo(x, y);
 
-    // Top edge
+    // Top
     if (this.tabs.top !== 0) {
-      const dir = this.tabs.top;
+      const sign = -this.tabs.top;
       ctx.lineTo(x + w * 0.38, y);
       ctx.bezierCurveTo(
-        x + w * 0.32, y - tabH * dir,
-        x + w * 0.42, y - tabH * dir * 1.3,
-        x + w * 0.5, y - tabH * dir * 1.3
+        x + w * 0.36, y + tabRadius * sign * 0.4,
+        x + w * 0.42, y + tabRadius * sign * 1.25,
+        x + w * 0.5, y + tabRadius * sign * 1.25
       );
       ctx.bezierCurveTo(
-        x + w * 0.58, y - tabH * dir * 1.3,
-        x + w * 0.68, y - tabH * dir,
+        x + w * 0.58, y + tabRadius * sign * 1.25,
+        x + w * 0.64, y + tabRadius * sign * 0.4,
         x + w * 0.62, y
       );
     }
     ctx.lineTo(x + w, y);
 
-    // Right edge
+    // Right
     if (this.tabs.right !== 0) {
-      const dir = this.tabs.right;
+      const sign = this.tabs.right;
       ctx.lineTo(x + w, y + h * 0.38);
       ctx.bezierCurveTo(
-        x + w + tabW * dir, y + h * 0.32,
-        x + w + tabW * dir * 1.3, y + h * 0.42,
-        x + w + tabW * dir * 1.3, y + h * 0.5
+        x + w + tabRadius * sign * 0.4, y + h * 0.36,
+        x + w + tabRadius * sign * 1.25, y + h * 0.42,
+        x + w + tabRadius * sign * 1.25, y + h * 0.5
       );
       ctx.bezierCurveTo(
-        x + w + tabW * dir * 1.3, y + h * 0.58,
-        x + w + tabW * dir, y + h * 0.68,
+        x + w + tabRadius * sign * 1.25, y + h * 0.58,
+        x + w + tabRadius * sign * 0.4, y + h * 0.64,
         x + w, y + h * 0.62
       );
     }
     ctx.lineTo(x + w, y + h);
 
-    // Bottom edge
+    // Bottom
     if (this.tabs.bottom !== 0) {
-      const dir = this.tabs.bottom;
+      const sign = this.tabs.bottom;
       ctx.lineTo(x + w * 0.62, y + h);
       ctx.bezierCurveTo(
-        x + w * 0.68, y + h + tabH * dir,
-        x + w * 0.58, y + h + tabH * dir * 1.3,
-        x + w * 0.5, y + h + tabH * dir * 1.3
+        x + w * 0.64, y + h + tabRadius * sign * 0.4,
+        x + w * 0.58, y + h + tabRadius * sign * 1.25,
+        x + w * 0.5, y + h + tabRadius * sign * 1.25
       );
       ctx.bezierCurveTo(
-        x + w * 0.42, y + h + tabH * dir * 1.3,
-        x + w * 0.32, y + h + tabH * dir,
+        x + w * 0.42, y + h + tabRadius * sign * 1.25,
+        x + w * 0.36, y + h + tabRadius * sign * 0.4,
         x + w * 0.38, y + h
       );
     }
     ctx.lineTo(x, y + h);
 
-    // Left edge
+    // Left
     if (this.tabs.left !== 0) {
-      const dir = this.tabs.left;
+      const sign = -this.tabs.left;
       ctx.lineTo(x, y + h * 0.62);
       ctx.bezierCurveTo(
-        x - tabW * dir, y + h * 0.68,
-        x - tabW * dir * 1.3, y + h * 0.58,
-        x - tabW * dir * 1.3, y + h * 0.5
+        x + tabRadius * sign * 0.4, y + h * 0.64,
+        x + tabRadius * sign * 1.25, y + h * 0.58,
+        x + tabRadius * sign * 1.25, y + h * 0.5
       );
       ctx.bezierCurveTo(
-        x - tabW * dir * 1.3, y + h * 0.42,
-        x - tabW * dir, y + h * 0.32,
+        x + tabRadius * sign * 1.25, y + h * 0.42,
+        x + tabRadius * sign * 0.4, y + h * 0.36,
         x, y + h * 0.38
       );
     }
@@ -153,15 +148,15 @@ export class PuzzleEngine {
   constructor() {
     this.pieces = [];
     this.image = null;
-    this.gridRows = 3;
-    this.gridCols = 3;
+    this.gridRows = 4;
+    this.gridCols = 4;
 
     this.boardX = 0;
     this.boardY = 0;
     this.boardWidth = 0;
     this.boardHeight = 0;
 
-    this.snapThreshold = 45; // Pixel tolerance to snap piece into place
+    this.snapThreshold = 45;
     this.grabbedPiece = null;
     this.grabOffset = { x: 0, y: 0 };
   }
@@ -170,13 +165,11 @@ export class PuzzleEngine {
     this.image = image;
     this.pieces = [];
 
-    // Scale grid difficulty by level: Level 1 = 3x3, Level 2 = 4x4, etc.
-    const size = Math.min(level + 2, 6);
-    this.gridRows = size;
-    this.gridCols = size;
+    // 4x4 grid (16 pieces) matches the video
+    this.gridRows = 4;
+    this.gridCols = 4;
 
-    // Board dimensions
-    this.boardWidth = Math.min(canvasWidth * 0.52, canvasHeight * 0.65);
+    this.boardWidth = Math.min(canvasWidth * 0.44, canvasHeight * 0.68);
     this.boardHeight = this.boardWidth;
     this.boardX = (canvasWidth - this.boardWidth) / 2;
     this.boardY = (canvasHeight - this.boardHeight) / 2;
@@ -187,7 +180,6 @@ export class PuzzleEngine {
     const cropW = image.naturalWidth / this.gridCols;
     const cropH = image.naturalHeight / this.gridRows;
 
-    // Generate grid pieces
     let id = 0;
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
@@ -206,13 +198,13 @@ export class PuzzleEngine {
         piece.targetX = this.boardX + c * pieceW;
         piece.targetY = this.boardY + r * pieceH;
 
-        // Distribute loose pieces around the perimeter
-        const leftZone = Math.random() < 0.5;
-        const scatterX = leftZone
-          ? Math.random() * Math.max(10, this.boardX - pieceW - 15)
-          : this.boardX + this.boardWidth + 15 + Math.random() * Math.max(10, canvasWidth - (this.boardX + this.boardWidth + pieceW + 20));
+        // Scatter pieces left and right outside the central board
+        const placeLeft = Math.random() < 0.5;
+        const scatterX = placeLeft
+          ? Math.random() * Math.max(20, this.boardX - pieceW - 40) + 15
+          : this.boardX + this.boardWidth + 40 + Math.random() * Math.max(20, canvasWidth - (this.boardX + this.boardWidth + pieceW + 60));
 
-        const scatterY = Math.random() * (canvasHeight - pieceH - 20) + 10;
+        const scatterY = Math.random() * (canvasHeight - pieceH - 60) + 30;
 
         piece.currentX = Math.max(10, Math.min(canvasWidth - pieceW - 10, scatterX));
         piece.currentY = Math.max(10, Math.min(canvasHeight - pieceH - 10, scatterY));
@@ -221,12 +213,11 @@ export class PuzzleEngine {
       }
     }
 
-    // Build interlocking puzzle tabs
+    // Build interlocking matching tabs
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
         const piece = this.getPieceByGrid(r, c);
 
-        // Right / Left matching
         if (c < this.gridCols - 1) {
           const tab = Math.random() < 0.5 ? 1 : -1;
           piece.tabs.right = tab;
@@ -234,7 +225,6 @@ export class PuzzleEngine {
           if (neighbor) neighbor.tabs.left = -tab;
         }
 
-        // Bottom / Top matching
         if (r < this.gridRows - 1) {
           const tab = Math.random() < 0.5 ? 1 : -1;
           piece.tabs.bottom = tab;
@@ -250,7 +240,6 @@ export class PuzzleEngine {
   }
 
   getPieceAt(x, y) {
-    // Search top-to-bottom of render stack
     for (let i = this.pieces.length - 1; i >= 0; i--) {
       const piece = this.pieces[i];
       if (
@@ -271,7 +260,6 @@ export class PuzzleEngine {
   updateInteraction(cursor) {
     if (!cursor) return;
 
-    // Hover state
     for (const piece of this.pieces) {
       piece.isHovered =
         !piece.isSnapped &&
@@ -283,7 +271,6 @@ export class PuzzleEngine {
         });
     }
 
-    // Gesture grab logic
     if (cursor.isPinching) {
       if (!this.grabbedPiece) {
         const piece = this.getPieceAt(cursor.x, cursor.y);
@@ -292,18 +279,15 @@ export class PuzzleEngine {
           this.grabOffset.x = cursor.x - piece.currentX;
           this.grabOffset.y = cursor.y - piece.currentY;
 
-          // Lift to top of drawing order
           const idx = this.pieces.indexOf(piece);
           this.pieces.splice(idx, 1);
           this.pieces.push(piece);
         }
       } else {
-        // Move with smoothed cursor
         this.grabbedPiece.currentX = cursor.x - this.grabOffset.x;
         this.grabbedPiece.currentY = cursor.y - this.grabOffset.y;
       }
     } else {
-      // Release piece
       if (this.grabbedPiece) {
         this.checkSnap(this.grabbedPiece);
         this.grabbedPiece = null;
@@ -324,7 +308,6 @@ export class PuzzleEngine {
       piece.currentY = piece.targetY;
       piece.isSnapped = true;
 
-      // Push snapped pieces beneath free pieces
       const idx = this.pieces.indexOf(piece);
       this.pieces.splice(idx, 1);
       this.pieces.unshift(piece);
@@ -337,24 +320,22 @@ export class PuzzleEngine {
 
   drawBoard(ctx) {
     ctx.save();
-    // Target grid outline
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-    ctx.lineWidth = 1;
+
+    // Outer cyan glowing border
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 2.5;
     ctx.strokeRect(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
 
-    const pieceW = this.boardWidth / this.gridCols;
-    const pieceH = this.boardHeight / this.gridRows;
+    // Inner jigsaw puzzle outline slots
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
+    ctx.lineWidth = 1.2;
 
-    for (let r = 0; r < this.gridRows; r++) {
-      for (let c = 0; c < this.gridCols; c++) {
-        ctx.strokeRect(
-          this.boardX + c * pieceW,
-          this.boardY + r * pieceH,
-          pieceW,
-          pieceH
-        );
-      }
+    for (const piece of this.pieces) {
+      ctx.beginPath();
+      piece.createPath(ctx, piece.targetX, piece.targetY, piece.width, piece.height);
+      ctx.stroke();
     }
+
     ctx.restore();
   }
 

@@ -1,5 +1,5 @@
 import { HandTracker } from "./handTracker.js";
-import { PuzzleEngine } from "./puzzleEngine.js?v=2";
+import { PuzzleEngine } from "./puzzleEngine.js?v=3";
 import { getRandomPuzzleImage } from "./imagePool.js";
 import { formatTime } from "./utils.js";
 
@@ -8,7 +8,6 @@ class App {
     this.canvas = document.getElementById("game-canvas");
     this.ctx = this.canvas.getContext("2d");
     this.video = document.getElementById("webcam-feed");
-    this.bgCanvas = document.getElementById("bg-watermark-canvas");
 
     this.currentLevel = 1;
     this.maxLevel = 5;
@@ -16,20 +15,41 @@ class App {
     this.isPaused = false;
     this.isolateSkeleton = false;
 
-    // Performance & Timer tracking
+    // Timer & FPS
     this.timer = 0;
     this.timerInterval = null;
     this.lastFrameTime = performance.now();
     this.fps = 0;
 
-    // Mouse / Touch fallback dragging state
+    // Mouse fallback
     this.mouseDragPiece = null;
     this.mouseOffset = { x: 0, y: 0 };
 
     this.puzzle = new PuzzleEngine();
-    this.tracker = new HandTracker(this.video, (image) => this.onTrackerFrame(image));
+    this.tracker = new HandTracker(this.video, () => {});
+
+    this.watermarkPattern = null;
+    this.createWatermarkPattern();
 
     this.init();
+  }
+
+  createWatermarkPattern() {
+    const patternCanvas = document.createElement("canvas");
+    patternCanvas.width = 300;
+    patternCanvas.height = 160;
+    const pCtx = patternCanvas.getContext("2d");
+
+    pCtx.font = "bold 13px system-ui, -apple-system, sans-serif";
+    pCtx.fillStyle = "rgba(255, 255, 255, 0.055)";
+    pCtx.textAlign = "center";
+    pCtx.textBaseline = "middle";
+
+    pCtx.fillText("•  VISION JIGSAW  •", 150, 45);
+    pCtx.fillText("•  VISION JIGSAW  •", 0, 125);
+    pCtx.fillText("•  VISION JIGSAW  •", 300, 125);
+
+    this.watermarkPattern = this.ctx.createPattern(patternCanvas, "repeat");
   }
 
   async init() {
@@ -38,16 +58,12 @@ class App {
     window.addEventListener("resize", () => this.resizeCanvas());
 
     this.loadLevel(this.currentLevel);
-
-    // Initialize camera tracking
     await this.tracker.init();
 
-    // Start render loop
     requestAnimationFrame((ts) => this.loop(ts));
   }
 
   bindUI() {
-    // Isolate skeleton toggle
     const toggle = document.getElementById("skeleton-toggle");
     if (toggle) {
       toggle.addEventListener("change", (e) => {
@@ -55,28 +71,6 @@ class App {
       });
     }
 
-    // Controls
-    const pauseBtn = document.getElementById("btn-pause");
-    if (pauseBtn) {
-      pauseBtn.addEventListener("click", () => this.togglePause());
-    }
-
-    const resumeBtn = document.getElementById("btn-resume");
-    if (resumeBtn) {
-      resumeBtn.addEventListener("click", () => this.togglePause());
-    }
-
-    const restartLevelBtn = document.getElementById("btn-restart-level");
-    if (restartLevelBtn) {
-      restartLevelBtn.addEventListener("click", () => this.restartLevel());
-    }
-
-    const restartGameBtn = document.getElementById("btn-restart-game");
-    if (restartGameBtn) {
-      restartGameBtn.addEventListener("click", () => this.restartGame());
-    }
-
-    // Modal retry / next
     const retryBtn = document.getElementById("btn-retry");
     if (retryBtn) {
       retryBtn.addEventListener("click", () => {
@@ -93,13 +87,7 @@ class App {
       });
     }
 
-    // Scoreboard reset
-    const resetScoreBtn = document.getElementById("btn-reset-leaderboard");
-    if (resetScoreBtn) {
-      resetScoreBtn.addEventListener("click", () => this.resetLeaderboard());
-    }
-
-    // Fallback Mouse & Touch Events
+    // Mouse & Touch fallback
     this.canvas.addEventListener("mousedown", (e) => this.handlePointerDown(e));
     window.addEventListener("mousemove", (e) => this.handlePointerMove(e));
     window.addEventListener("mouseup", () => this.handlePointerUp());
@@ -129,20 +117,11 @@ class App {
       this.updateCounters();
       this.startTimer();
     };
-    img.onerror = (err) => {
-      console.error("Failed to load random puzzle image:", err);
-    };
-
-    // Load random Picsum photo
+    img.onerror = (err) => console.error("Image loading error:", err);
     img.src = getRandomPuzzleImage();
   }
 
   resizeCanvas() {
-    if (this.bgCanvas) {
-      this.bgCanvas.width = window.innerWidth;
-      this.bgCanvas.height = window.innerHeight;
-    }
-
     const rect = this.canvas.getBoundingClientRect();
     const prevW = this.canvas.width || 1000;
     const prevH = this.canvas.height || 700;
@@ -153,11 +132,13 @@ class App {
     this.canvas.width = newW;
     this.canvas.height = newH;
 
+    this.createWatermarkPattern();
+
     if (this.puzzle && this.puzzle.pieces && this.puzzle.pieces.length > 0) {
       const scaleX = newW / prevW;
       const scaleY = newH / prevH;
 
-      this.puzzle.boardWidth = Math.min(newW * 0.52, newH * 0.65);
+      this.puzzle.boardWidth = Math.min(newW * 0.44, newH * 0.68);
       this.puzzle.boardHeight = this.puzzle.boardWidth;
       this.puzzle.boardX = (newW - this.puzzle.boardWidth) / 2;
       this.puzzle.boardY = (newH - this.puzzle.boardHeight) / 2;
@@ -209,23 +190,9 @@ class App {
     }
   }
 
-  togglePause() {
-    this.isPaused = !this.isPaused;
-    const banner = document.getElementById("pause-banner");
-    if (banner) {
-      banner.classList.toggle("banner-hidden", !this.isPaused);
-    }
-  }
-
   restartLevel() {
     this.hideModals();
     this.loadLevel(this.currentLevel);
-  }
-
-  restartGame() {
-    this.hideModals();
-    this.currentLevel = 1;
-    this.loadLevel(1);
   }
 
   nextLevel() {
@@ -233,27 +200,15 @@ class App {
       this.currentLevel++;
       this.loadLevel(this.currentLevel);
     } else {
-      alert("Congratulations! You completed all jigsaw puzzle levels!");
-      this.restartGame();
+      this.restartLevel();
     }
   }
 
   hideModals() {
     const levelBanner = document.getElementById("level-banner");
     if (levelBanner) levelBanner.classList.add("banner-hidden");
-
-    const pauseBanner = document.getElementById("pause-banner");
-    if (pauseBanner) pauseBanner.classList.add("banner-hidden");
-
-    const gameOverBanner = document.getElementById("gameover-banner");
-    if (gameOverBanner) gameOverBanner.classList.add("banner-hidden");
   }
 
-  onTrackerFrame() {
-    // MediaPipe frame hook
-  }
-
-  // Mouse & Touch fallback controls
   getCanvasCoords(e) {
     const rect = this.canvas.getBoundingClientRect();
     return {
@@ -272,7 +227,6 @@ class App {
       this.mouseOffset.x = x - piece.currentX;
       this.mouseOffset.y = y - piece.currentY;
 
-      // Bring to top of stack
       const idx = this.puzzle.pieces.indexOf(piece);
       this.puzzle.pieces.splice(idx, 1);
       this.puzzle.pieces.push(piece);
@@ -306,52 +260,47 @@ class App {
   }
 
   loop(timestamp) {
-    // Calculate FPS
     const delta = timestamp - this.lastFrameTime;
     this.lastFrameTime = timestamp;
     this.fps = Math.round(1000 / (delta || 1));
     const fpsEl = document.getElementById("fps-display");
-    if (fpsEl) fpsEl.textContent = `${this.fps} FPS`;
+    if (fpsEl) fpsEl.textContent = `${this.fps}`;
 
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Draw background webcam feed or dark slate
+    // Dark solid canvas background
+    this.ctx.fillStyle = "#0c0d12";
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Render repeating watermark pattern
+    if (this.watermarkPattern) {
+      this.ctx.fillStyle = this.watermarkPattern;
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    // Optional camera underlay
     if (!this.isolateSkeleton && this.video && this.video.readyState >= 2) {
       this.ctx.save();
       this.ctx.translate(this.canvas.width, 0);
       this.ctx.scale(-1, 1);
-      this.ctx.globalAlpha = 0.35;
+      this.ctx.globalAlpha = 0.08;
       this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
       this.ctx.restore();
-    } else {
-      this.ctx.fillStyle = "#090a0f";
-      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
     if (!this.isPaused && this.puzzle) {
-      // Update gesture pinch interaction
       const cursor = this.tracker.cursor;
       this.puzzle.updateInteraction(cursor);
       this.updateCounters();
       this.checkWinCondition();
 
-      // Render puzzle target board & pieces
       this.puzzle.drawBoard(this.ctx);
       this.puzzle.drawPieces(this.ctx);
 
-      // Draw hand landmarks and cursor
       this.tracker.drawHandSkeleton(this.ctx, this.canvas.width, this.canvas.height);
     }
 
     requestAnimationFrame((ts) => this.loop(ts));
-  }
-
-  resetLeaderboard() {
-    localStorage.removeItem("jigsaw_leaderboard");
-    const container = document.getElementById("scoreboard-list");
-    if (container) {
-      container.innerHTML = `<div class="empty-score">No records yet</div>`;
-    }
   }
 }
 
