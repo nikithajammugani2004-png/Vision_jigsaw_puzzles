@@ -33,3 +33,18 @@ export function formatTime(seconds) {
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
+
+// Check if a 2D coordinate is inside a rectangular bounding box
+export function isPointInRect(point, rect) {
+  return (
+    point.x >= rect.x &&
+    point.x <= rect.x + rect.width &&
+    point.y >= rect.y &&
+    point.y <= rect.y + rect.height
+  );
+}
+
+// Random range helper
+export function randomRange(min, max) {
+  return Math.random() * (max - min) + min;
+}
