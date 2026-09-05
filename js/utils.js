@@ -1,38 +1,35 @@
+// Low-pass filter for smoothing hand landmark jitter
 export class LowPassFilter {
-  constructor(alpha = 0.5) {
+  constructor(alpha = 0.65) {
     this.alpha = alpha;
-    this.value = null;
+    this.prev = null;
   }
 
   filter(val) {
-    if (this.value === null) {
-      this.value = val;
+    if (this.prev === null) {
+      this.prev = val;
       return val;
     }
-    this.value = this.alpha * val + (1 - this.alpha) * this.value;
-    return this.value;
+    const current = this.alpha * val + (1 - this.alpha) * this.prev;
+    this.prev = current;
+    return current;
   }
 
   reset() {
-    this.value = null;
+    this.prev = null;
   }
 }
 
+// Euclidean distance helper
 export function getDistance(p1, p2) {
   const dx = p1.x - p2.x;
   const dy = p1.y - p2.y;
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-export function isPointInRect(px, py, rx, ry, rw, rh) {
-  return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
-}
-
-export function shuffleArray(arr) {
-  const array = [...arr];
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
+// Format seconds into MM:SS format
+export function formatTime(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
