@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vision Jigsaw Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>">
+  <meta name="description" content="Interactive AR Jigsaw Puzzle powered by MediaPipe hand gesture tracking.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- MediaPipe Hands & Camera Utils -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <!-- Background Canvas for outer moving watermark -->
+  <canvas id="bg-watermark-canvas"></canvas>
+
+  <!-- Header matching the studio layout -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="brand">
+        <div class="brand-icon">🧩</div>
+        <h1>Vision Jigsaw <span>Studio</span></h1>
+      </div>
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        <span class="status-label">Status:</span>
+        <span id="mode-text" class="status-value">Ready</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Viewport with feed box and side panel -->
+  <main class="main-container">
+    <div class="feed-container">
+      <div class="feed-box">
+        <canvas id="game-canvas"></canvas>
+        <video id="webcam-feed" playsinline></video>
+
+        <!-- Pause Overlay -->
+        <div id="pause-banner" class="banner-hidden">
+          <div class="banner-content">
+            <h2 style="color: #38bdf8; text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);">GAME PAUSED</h2>
+            <p>Timer and gestures are frozen</p>
+            <button id="resume-btn" class="modal-btn resume-btn" style="margin-top: 14px;">▶️ Resume Game</button>
+          </div>
+        </div>
+
+        <!-- Win Overlay with Name Input -->
+        <div id="level-banner" class="banner-hidden">
+          <div class="banner-content">
+            <h2>LEVEL CLEARED!</h2>
+            <p id="clear-time-text">Completed in 00:00</p>
+            <div class="name-entry-form">
+              <input type="text" id="player-name-input" maxlength="12" placeholder="Enter your name" />
+              <button id="save-score-btn">Save Score</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Time Over Overlay -->
+        <div id="gameover-banner" class="banner-hidden">
+          <div class="banner-content">
+            <h2 style="color: #ef4444; text-shadow: 0 0 20px rgba(239, 68, 68, 0.4);">TIME'S UP!</h2>
+            <p>You ran out of time for this puzzle.</p>
+            <div class="name-entry-form" style="flex-direction: column; align-items: center;">
+              <input type="text" id="quit-name-input" maxlength="12" placeholder="Enter name to record score" />
+              <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button id="retry-btn" class="modal-btn retry-btn">Retry Level</button>
+                <button id="quit-btn" class="modal-btn quit-btn">Quit & Record</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side Control Panel -->
+    <aside class="controls-panel">
+      <div class="panel-section">
+        <h2 class="section-title">Goal Preview</h2>
+        <div class="reference-wrapper">
+          <img id="ref-img" alt="Target preview" />
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h2 class="section-title">Game Controls</h2>
+        <div class="toggle-group">
+          <label for="isolateToggle">Isolate Skeleton Only</label>
+          <label class="switch">
+            <input type="checkbox" id="isolateToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="control-actions-row">
+          <button id="pause-btn" class="control-btn btn-pause">
+            ⏸️ Pause
+          </button>
+          <button id="restart-level-btn" class="control-btn btn-restart-level">
+            🔄 Restart Level
+          </button>
+          <button id="restart-game-btn" class="control-btn btn-restart-game">
+            ⚠️ Restart
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h2 class="section-title">Game Info</h2>
+        <div class="stat-card">
+          <span class="stat-label">Level</span>
+          <strong id="level-title">LEVEL 1</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Remaining Pieces</span>
+          <strong id="pieces-counter">0 / 0</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Timer</span>
+          <strong id="timer-counter">00:00</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Performance</span>
+          <strong id="fps-counter">0 FPS</strong>
+        </div>
+      </div>
+
+      <!-- Live Leaderboard Section -->
+      <div class="panel-section">
+        <div class="section-header-row">
+          <h2 class="section-title">Leaderboard</h2>
+          <button id="clear-scores-btn" class="text-btn">Reset</button>
+        </div>
+        <div class="scoreboard-container" id="scoreboard-list">
+          <div class="empty-score">No records yet</div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h2 class="section-title">How to Play</h2>
+        <ul class="help-list">
+          <li>Pinch index and thumb to grab a piece.</li>
+          <li>Drag it over its matching puzzle slot.</li>
+          <li>Release pinch to snap into place.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
