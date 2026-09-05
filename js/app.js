@@ -1,5 +1,5 @@
 import { HandTracker } from "./handTracker.js";
-import { PuzzleEngine } from "./puzzleEngine.js";
+import { PuzzleEngine } from "./puzzleEngine.js?v=2";
 import { getRandomPuzzleImage } from "./imagePool.js";
 import { formatTime } from "./utils.js";
 
