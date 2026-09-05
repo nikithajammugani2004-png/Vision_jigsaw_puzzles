@@ -290,7 +290,7 @@ class App {
 
     if (!this.isPaused && this.puzzle) {
       const cursor = this.tracker.cursor;
-      this.puzzle.updateInteraction(cursor);
+      this.puzzle.updateInteraction(cursor, this.canvas.width, this.canvas.height);
       this.updateCounters();
       this.checkWinCondition();
 

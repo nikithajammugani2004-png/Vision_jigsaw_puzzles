@@ -35,9 +35,9 @@ export class PuzzlePiece {
 
     if (!this.isSnapped) {
       ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
-      ctx.shadowBlur = this.isHovered ? 18 : 10;
-      ctx.shadowOffsetX = 4;
-      ctx.shadowOffsetY = 4;
+      ctx.shadowBlur = this.isHovered ? 16 : 10;
+      ctx.shadowOffsetX = 3;
+      ctx.shadowOffsetY = 3;
     }
 
     ctx.beginPath();
@@ -46,7 +46,7 @@ export class PuzzlePiece {
     ctx.save();
     ctx.clip();
 
-    // Bleed drawing so outward tabs receive proper texture margins
+    // Bleed drawing margins so tabs are textured
     const bleed = Math.max(this.width, this.height) * 0.3;
     const sBleedX = (bleed / this.width) * this.sWidth;
     const sBleedY = (bleed / this.height) * this.sHeight;
@@ -68,7 +68,7 @@ export class PuzzlePiece {
       ? "rgba(56, 189, 248, 0.35)"
       : this.isHovered
       ? "#38bdf8"
-      : "rgba(255, 255, 255, 0.4)";
+      : "rgba(255, 255, 255, 0.38)";
     ctx.lineWidth = this.isHovered ? 2.5 : 1.5;
     ctx.stroke();
 
@@ -162,7 +162,7 @@ export class PuzzleEngine {
     this.boardWidth = 0;
     this.boardHeight = 0;
 
-    this.snapThreshold = 55; // Generous snap tolerance
+    this.snapThreshold = 55;
     this.grabbedPiece = null;
     this.grabOffset = { x: 0, y: 0 };
   }
@@ -203,7 +203,7 @@ export class PuzzleEngine {
         piece.targetX = this.boardX + c * pieceW;
         piece.targetY = this.boardY + r * pieceH;
 
-        // Spread loose pieces nicely around the lateral margins
+        // Distribute pieces nicely in the left and right gutters
         const placeLeft = Math.random() < 0.5;
         const scatterX = placeLeft
           ? Math.random() * Math.max(20, this.boardX - pieceW - 40) + 15
@@ -245,16 +245,16 @@ export class PuzzleEngine {
   }
 
   getPieceAt(x, y) {
-    // Top-to-bottom priority check with generous hit box covering tabs
+    // Generous bounding box covering tabs and edges
     for (let i = this.pieces.length - 1; i >= 0; i--) {
       const piece = this.pieces[i];
       if (
         !piece.isSnapped &&
         isPointInRect({ x, y }, {
-          x: piece.currentX - piece.width * 0.25,
-          y: piece.currentY - piece.height * 0.25,
-          width: piece.width * 1.5,
-          height: piece.height * 1.5
+          x: piece.currentX - piece.width * 0.2,
+          y: piece.currentY - piece.height * 0.2,
+          width: piece.width * 1.4,
+          height: piece.height * 1.4
         })
       ) {
         return piece;
@@ -263,38 +263,43 @@ export class PuzzleEngine {
     return null;
   }
 
-  updateInteraction(cursor) {
+  updateInteraction(cursor, canvasWidth, canvasHeight) {
     if (!cursor) return;
 
-    // Hover indicators
+    // Normalize coordinates to actual canvas pixel space if coming as 0-1
+    const cx = cursor.x <= 1.0 ? cursor.x * canvasWidth : cursor.x;
+    const cy = cursor.y <= 1.0 ? cursor.y * canvasHeight : cursor.y;
+
+    // Hover state update
     for (const piece of this.pieces) {
       piece.isHovered =
         !piece.isSnapped &&
-        isPointInRect(cursor, {
-          x: piece.currentX - piece.width * 0.15,
-          y: piece.currentY - piece.height * 0.15,
-          width: piece.width * 1.3,
-          height: piece.height * 1.3
+        isPointInRect({ x: cx, y: cy }, {
+          x: piece.currentX - piece.width * 0.1,
+          y: piece.currentY - piece.height * 0.1,
+          width: piece.width * 1.2,
+          height: piece.height * 1.2
         });
     }
 
-    // Pinch pickup
+    // Grab or Move logic
     if (cursor.isPinching) {
       if (!this.grabbedPiece) {
-        const piece = this.getPieceAt(cursor.x, cursor.y);
+        const piece = this.getPieceAt(cx, cy);
         if (piece) {
           this.grabbedPiece = piece;
-          this.grabOffset.x = cursor.x - piece.currentX;
-          this.grabOffset.y = cursor.y - piece.currentY;
+          this.grabOffset.x = cx - piece.currentX;
+          this.grabOffset.y = cy - piece.currentY;
 
-          // Lift grabbed piece immediately to top of rendering order
+          // Lift to top of drawing order
           const idx = this.pieces.indexOf(piece);
           this.pieces.splice(idx, 1);
           this.pieces.push(piece);
         }
       } else {
-        this.grabbedPiece.currentX = cursor.x - this.grabOffset.x;
-        this.grabbedPiece.currentY = cursor.y - this.grabOffset.y;
+        // Drag piece smoothly with the pinch center
+        this.grabbedPiece.currentX = cx - this.grabOffset.x;
+        this.grabbedPiece.currentY = cy - this.grabOffset.y;
       }
     } else {
       if (this.grabbedPiece) {
@@ -317,7 +322,7 @@ export class PuzzleEngine {
       piece.currentY = piece.targetY;
       piece.isSnapped = true;
 
-      // Lock snapped piece behind any movable pieces
+      // Place snapped pieces under free ones
       const idx = this.pieces.indexOf(piece);
       this.pieces.splice(idx, 1);
       this.pieces.unshift(piece);
@@ -331,12 +336,12 @@ export class PuzzleEngine {
   drawBoard(ctx) {
     ctx.save();
 
-    // Outer cyan grid border
+    // Outer cyan grid frame
     ctx.strokeStyle = "#38bdf8";
     ctx.lineWidth = 2.5;
     ctx.strokeRect(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
 
-    // Inner jigsaw puzzle outline slots
+    // Inner puzzle slot curves
     ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
     ctx.lineWidth = 1.2;
 
