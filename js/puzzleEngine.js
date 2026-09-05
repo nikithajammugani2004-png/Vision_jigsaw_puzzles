@@ -74,50 +74,75 @@ export class PuzzlePiece {
   }
 
   createPath(ctx, x, y, w, h) {
-    const tabSize = Math.min(w, h) * 0.2;
+    const tabW = w * 0.22;
+    const tabH = h * 0.22;
 
     ctx.moveTo(x, y);
 
     // Top edge
     if (this.tabs.top !== 0) {
-      ctx.lineTo(x + w * 0.35, y);
+      const dir = this.tabs.top;
+      ctx.lineTo(x + w * 0.38, y);
       ctx.bezierCurveTo(
-        x + w * 0.35, y - tabSize * this.tabs.top,
-        x + w * 0.65, y - tabSize * this.tabs.top,
-        x + w * 0.65, y
+        x + w * 0.32, y - tabH * dir,
+        x + w * 0.42, y - tabH * dir * 1.3,
+        x + w * 0.5, y - tabH * dir * 1.3
+      );
+      ctx.bezierCurveTo(
+        x + w * 0.58, y - tabH * dir * 1.3,
+        x + w * 0.68, y - tabH * dir,
+        x + w * 0.62, y
       );
     }
     ctx.lineTo(x + w, y);
 
     // Right edge
     if (this.tabs.right !== 0) {
-      ctx.lineTo(x + w * 0.35, y + h * 0.35);
+      const dir = this.tabs.right;
+      ctx.lineTo(x + w, y + h * 0.38);
       ctx.bezierCurveTo(
-        x + w + tabSize * this.tabs.right, y + h * 0.35,
-        x + w + tabSize * this.tabs.right, y + h * 0.65,
-        x + w, y + h * 0.65
+        x + w + tabW * dir, y + h * 0.32,
+        x + w + tabW * dir * 1.3, y + h * 0.42,
+        x + w + tabW * dir * 1.3, y + h * 0.5
+      );
+      ctx.bezierCurveTo(
+        x + w + tabW * dir * 1.3, y + h * 0.58,
+        x + w + tabW * dir, y + h * 0.68,
+        x + w, y + h * 0.62
       );
     }
     ctx.lineTo(x + w, y + h);
 
     // Bottom edge
     if (this.tabs.bottom !== 0) {
-      ctx.lineTo(x + w * 0.65, y + h);
+      const dir = this.tabs.bottom;
+      ctx.lineTo(x + w * 0.62, y + h);
       ctx.bezierCurveTo(
-        x + w * 0.65, y + h + tabSize * this.tabs.bottom,
-        x + w * 0.35, y + h + tabSize * this.tabs.bottom,
-        x + w * 0.35, y + h
+        x + w * 0.68, y + h + tabH * dir,
+        x + w * 0.58, y + h + tabH * dir * 1.3,
+        x + w * 0.5, y + h + tabH * dir * 1.3
+      );
+      ctx.bezierCurveTo(
+        x + w * 0.42, y + h + tabH * dir * 1.3,
+        x + w * 0.32, y + h + tabH * dir,
+        x + w * 0.38, y + h
       );
     }
     ctx.lineTo(x, y + h);
 
     // Left edge
     if (this.tabs.left !== 0) {
-      ctx.lineTo(x, y + h * 0.65);
+      const dir = this.tabs.left;
+      ctx.lineTo(x, y + h * 0.62);
       ctx.bezierCurveTo(
-        x - tabSize * this.tabs.left, y + h * 0.65,
-        x - tabSize * this.tabs.left, y + h * 0.35,
-        x, y + h * 0.35
+        x - tabW * dir, y + h * 0.68,
+        x - tabW * dir * 1.3, y + h * 0.58,
+        x - tabW * dir * 1.3, y + h * 0.5
+      );
+      ctx.bezierCurveTo(
+        x - tabW * dir * 1.3, y + h * 0.42,
+        x - tabW * dir, y + h * 0.32,
+        x, y + h * 0.38
       );
     }
     ctx.closePath();
