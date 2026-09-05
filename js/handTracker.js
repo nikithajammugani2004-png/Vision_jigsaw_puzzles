@@ -21,14 +21,6 @@ export class HandTracker {
     this.hands = new window.Hands({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
     });
-    // Add catch block when camera starts
-    this.camera.start().catch((err) => {
-        console.error("Camera access error:", err);
-        const modeText = document.getElementById("mode-text");
-        if (modeText) modeText.textContent = "Camera Blocked / Unavailable";
-        alert("Please allow camera access in your browser to interact with the puzzle!");
-});
-    
 
     this.hands.setOptions({
       maxNumHands: 1,
@@ -39,20 +31,41 @@ export class HandTracker {
 
     this.hands.onResults((results) => this.handleResults(results));
 
-    this.camera = new window.Camera(this.video, {
-      onFrame: async () => {
-        await this.hands.send({ image: this.video });
-      },
-      width: 1280,
-      height: 720
-    });
+    // Guaranteed camera initialization using native getUserMedia
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: "user"
+          },
+          audio: false
+        });
 
-    return this.camera.start().catch((err) => {
-      console.error("Camera access failed:", err);
-      const modeText = document.getElementById("mode-text");
-      if (modeText) modeText.textContent = "Camera Blocked";
-      alert("Camera access is blocked or unavailable. Please enable camera permissions to play using gestures!");
-    });
+        this.video.srcObject = stream;
+        await this.video.play();
+
+        this.camera = new window.Camera(this.video, {
+          onFrame: async () => {
+            if (this.video.readyState >= 2) {
+              await this.hands.send({ image: this.video });
+            }
+          },
+          width: 1280,
+          height: 720
+        });
+
+        return this.camera.start();
+      } catch (err) {
+        console.error("Camera access failed:", err);
+        const modeText = document.getElementById("mode-text");
+        if (modeText) modeText.textContent = "Camera Blocked";
+        alert("Camera access was blocked or unavailable. You can still play by dragging with your mouse or touch!");
+      }
+    } else {
+      alert("getUserMedia is not supported on this browser.");
+    }
   }
 
   handleResults(results) {
