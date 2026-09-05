@@ -6,36 +6,56 @@
   <title>Vision Jigsaw</title>
   <link rel="stylesheet" href="css/style.css" />
 
-  <!-- MediaPipe CDN Dependencies -->
+  <!-- MediaPipe Dependencies -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
-  <!-- Main Entry -->
+  <!-- Main Game Engine -->
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
   <main class="main-container">
-    <!-- Jigsaw & Vision Canvas -->
     <div class="canvas-wrapper">
       <video id="webcam-feed" autoplay playsinline muted style="display: none;"></video>
       <canvas id="game-canvas"></canvas>
 
-      <!-- Win Banner -->
+      <!-- Level Complete Modal -->
       <div id="level-banner" class="banner banner-hidden">
         <div class="banner-card">
           <h2>Level Complete! 🎉</h2>
-          <p>Great job snapping all the pieces together!</p>
+          <p id="level-win-msg">Great job solving the puzzle!</p>
           <div class="banner-actions">
             <button id="btn-retry" class="btn btn-secondary">Replay</button>
             <button id="btn-next-level" class="btn btn-primary">Next Level</button>
           </div>
         </div>
       </div>
+
+      <!-- Game Over (Time Up) Modal -->
+      <div id="gameover-banner" class="banner banner-hidden">
+        <div class="banner-card">
+          <h2>Time's Up! ⏳</h2>
+          <p>You ran out of time for this puzzle.</p>
+          <div class="banner-actions">
+            <button id="btn-gameover-retry" class="btn btn-primary">Try Again</button>
+          </div>
+        </div>
+      </div>
+      <!-- Pause Modal -->
+      <div id="pause-banner" class="banner banner-hidden">
+        <div class="banner-card">
+          <h2>Game Paused ⏸</h2>
+          <p>Take a breath! Your timer is currently paused.</p>
+          <div class="banner-actions">
+            <button id="btn-resume" class="btn btn-primary">Resume</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Right Sidebar matching the video -->
+    <!-- Right Sidebar -->
     <aside class="sidebar">
       <section class="sidebar-section">
         <h3>GOAL PREVIEW</h3>
@@ -49,9 +69,24 @@
         <div class="control-row">
           <span>Isolate Skeleton Only</span>
           <label class="switch">
-            <input type="checkbox" id="skeleton-toggle" checked />
+            <input type="checkbox" id="skeleton-toggle" />
             <span class="slider"></span>
           </label>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <h3>GAME CONTROLS</h3>
+        <div class="game-btn-group">
+          <button id="btn-pause" class="ctrl-btn">
+            <span class="icon">⏸</span> Pause
+          </button>
+          <button id="btn-restart-level" class="ctrl-btn">
+            <span class="icon">🔄</span> Restart Level
+          </button>
+          <button id="btn-restart-game" class="ctrl-btn danger">
+            <span class="icon">⚠️</span> Restart
+          </button>
         </div>
       </section>
 
@@ -59,15 +94,30 @@
         <h3>GAME INFO</h3>
         <div class="stat-pill">
           <span class="label">Level</span>
-          <span id="level-indicator" class="value cyan">LEVEL 1</span>
+          <span id="level-indicator" class="value cyan">LEVEL 1 (4x4)</span>
+        </div>
+        <div class="stat-pill">
+          <span class="label">Time Remaining</span>
+          <span id="timer-display" class="value cyan">02:00</span>
         </div>
         <div class="stat-pill">
           <span class="label">Remaining Pieces</span>
-          <span id="remaining-pieces" class="value cyan">1 / 16</span>
+          <span id="remaining-pieces" class="value cyan">16 / 16</span>
         </div>
         <div class="stat-pill">
           <span class="label">Performance</span>
-          <span id="fps-display" class="value purple">35</span>
+          <span id="fps-display" class="value purple">30</span>
+        </div>
+      </section>
+
+      <!-- Leaderboard -->
+      <section class="sidebar-section">
+        <div class="section-header">
+          <h3>LEADERBOARD</h3>
+          <button id="btn-reset-leaderboard" class="link-btn">RESET</button>
+        </div>
+        <div id="scoreboard-list" class="score-container">
+          <div class="empty-score">No records yet</div>
         </div>
       </section>
 

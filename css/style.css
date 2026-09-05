@@ -1,5 +1,5 @@
 :root {
-  --bg-color: #050608;
+  --bg-color: #53565a;
   --canvas-bg: #090b10;
   --sidebar-bg: #0d0f15;
   --card-bg: #131720;
@@ -247,3 +247,109 @@ input:checked + .slider:before {
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* Leaderboard Section */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: color 0.15s ease;
+}
+
+.link-btn:hover {
+  color: var(--cyan-accent);
+}
+
+.score-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.empty-score {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.score-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+
+.entry-level {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.entry-time.cyan {
+  color: var(--cyan-accent);
+  font-family: monospace;
+  font-weight: 700;
+}
+
+/* Game Controls Buttons */
+.game-btn-group {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.ctrl-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background-color: var(--card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  padding: 8px 6px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.ctrl-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.ctrl-btn.danger {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+.ctrl-btn.danger:hover {
+  background-color: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+.ctrl-btn .icon {
+  font-size: 0.75rem;
+}
+

@@ -1,5 +1,5 @@
 import { HandTracker } from "./handTracker.js";
-import { PuzzleEngine } from "./puzzleEngine.js?v=3";
+import { PuzzleEngine } from "./puzzleEngine.js?v=4";
 import { getRandomPuzzleImage } from "./imagePool.js";
 import { formatTime } from "./utils.js";
 
@@ -10,14 +10,17 @@ class App {
     this.video = document.getElementById("webcam-feed");
 
     this.currentLevel = 1;
-    this.maxLevel = 5;
+    this.maxLevel = 3;
     this.currentImage = null;
     this.isPaused = false;
     this.isolateSkeleton = false;
 
-    // Timer & FPS
-    this.timer = 0;
+    // Level durations in seconds
+    // Level 1: 4x4 (120s), Level 2: 5x5 (180s), Level 3: 6x6 (240s)
+    this.levelTimes = { 1: 120, 2: 180, 3: 240 };
+    this.timeRemaining = 120;
     this.timerInterval = null;
+
     this.lastFrameTime = performance.now();
     this.fps = 0;
 
@@ -54,6 +57,7 @@ class App {
 
   async init() {
     this.bindUI();
+    this.renderLeaderboard();
     this.resizeCanvas();
     window.addEventListener("resize", () => this.resizeCanvas());
 
@@ -66,6 +70,7 @@ class App {
   bindUI() {
     const toggle = document.getElementById("skeleton-toggle");
     if (toggle) {
+      this.isolateSkeleton = toggle.checked;
       toggle.addEventListener("change", (e) => {
         this.isolateSkeleton = e.target.checked;
       });
@@ -87,7 +92,49 @@ class App {
       });
     }
 
-    // Mouse & Touch fallback
+    const goRetryBtn = document.getElementById("btn-gameover-retry");
+    if (goRetryBtn) {
+      goRetryBtn.addEventListener("click", () => {
+        this.hideModals();
+        this.restartLevel();
+      });
+    }
+
+   const resetScoreBtn = document.getElementById("btn-reset-leaderboard");
+    if (resetScoreBtn) {
+      resetScoreBtn.addEventListener("click", () => this.resetLeaderboard());
+    }
+
+    const pauseBtn = document.getElementById("btn-pause");
+    if (pauseBtn) {
+      pauseBtn.addEventListener("click", () => this.togglePause());
+    }
+
+    const resumeBtn = document.getElementById("btn-resume");
+    if (resumeBtn) {
+      resumeBtn.addEventListener("click", () => this.togglePause());
+    }
+
+    const restartLevelBtn = document.getElementById("btn-restart-level");
+    if (restartLevelBtn) {
+      restartLevelBtn.addEventListener("click", () => {
+        this.isPaused = false;
+        this.hideModals();
+        this.restartLevel();
+      });
+    }
+
+    const restartGameBtn = document.getElementById("btn-restart-game");
+    if (restartGameBtn) {
+      restartGameBtn.addEventListener("click", () => {
+        this.isPaused = false;
+        this.hideModals();
+        this.currentLevel = 1;
+        this.loadLevel(1);
+      });
+    }
+
+    // Mouse fallback
     this.canvas.addEventListener("mousedown", (e) => this.handlePointerDown(e));
     window.addEventListener("mousemove", (e) => this.handlePointerMove(e));
     window.addEventListener("mouseup", () => this.handlePointerUp());
@@ -102,8 +149,12 @@ class App {
 
   loadLevel(level) {
     this.currentLevel = level;
+    const gridLabel = level === 1 ? "4x4" : level === 2 ? "5x5" : "6x6";
     const levelText = document.getElementById("level-indicator");
-    if (levelText) levelText.textContent = `LEVEL ${this.currentLevel}`;
+    if (levelText) levelText.textContent = `LEVEL ${this.currentLevel} (${gridLabel})`;
+
+    this.timeRemaining = this.levelTimes[this.currentLevel] || 120;
+    this.updateTimerDisplay();
 
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -115,10 +166,39 @@ class App {
       this.resizeCanvas();
       this.puzzle.setupPuzzle(img, this.currentLevel, this.canvas.width, this.canvas.height);
       this.updateCounters();
-      this.startTimer();
+      this.startCountdown();
     };
     img.onerror = (err) => console.error("Image loading error:", err);
     img.src = getRandomPuzzleImage();
+  }
+
+  startCountdown() {
+    clearInterval(this.timerInterval);
+    this.updateTimerDisplay();
+
+    this.timerInterval = setInterval(() => {
+      if (!this.isPaused) {
+        this.timeRemaining--;
+        this.updateTimerDisplay();
+
+        if (this.timeRemaining <= 0) {
+          clearInterval(this.timerInterval);
+          this.triggerGameOver();
+        }
+      }
+    }, 1000);
+  }
+
+  updateTimerDisplay() {
+    const timerEl = document.getElementById("timer-display");
+    if (timerEl) {
+      timerEl.textContent = formatTime(Math.max(0, this.timeRemaining));
+    }
+  }
+
+  triggerGameOver() {
+    const banner = document.getElementById("gameover-banner");
+    if (banner) banner.classList.remove("banner-hidden");
   }
 
   resizeCanvas() {
@@ -162,26 +242,6 @@ class App {
     }
   }
 
-  startTimer() {
-    clearInterval(this.timerInterval);
-    this.timer = 0;
-    this.updateTimerDisplay();
-
-    this.timerInterval = setInterval(() => {
-      if (!this.isPaused) {
-        this.timer++;
-        this.updateTimerDisplay();
-      }
-    }, 1000);
-  }
-
-  updateTimerDisplay() {
-    const timerEl = document.getElementById("timer-display");
-    if (timerEl) {
-      timerEl.textContent = formatTime(this.timer);
-    }
-  }
-
   updateCounters() {
     const remainingEl = document.getElementById("remaining-pieces");
     if (remainingEl && this.puzzle && this.puzzle.pieces) {
@@ -200,13 +260,34 @@ class App {
       this.currentLevel++;
       this.loadLevel(this.currentLevel);
     } else {
-      this.restartLevel();
+      alert("All levels cleared! Restarting from Level 1.");
+      this.currentLevel = 1;
+      this.loadLevel(1);
+    }
+  }
+
+  togglePause() {
+    this.isPaused = !this.isPaused;
+    const pauseBanner = document.getElementById("pause-banner");
+    const pauseBtn = document.getElementById("btn-pause");
+    if (this.isPaused) {
+      if (pauseBanner) pauseBanner.classList.remove("banner-hidden");
+      if (pauseBtn) pauseBtn.innerHTML = `<span class="icon">▶</span> Resume`;
+    } else {
+      if (pauseBanner) pauseBanner.classList.add("banner-hidden");
+      if (pauseBtn) pauseBtn.innerHTML = `<span class="icon">⏸</span> Pause`;
     }
   }
 
   hideModals() {
     const levelBanner = document.getElementById("level-banner");
     if (levelBanner) levelBanner.classList.add("banner-hidden");
+
+    const gameOverBanner = document.getElementById("gameover-banner");
+    if (gameOverBanner) gameOverBanner.classList.add("banner-hidden");
+
+    const pauseBanner = document.getElementById("pause-banner");
+    if (pauseBanner) pauseBanner.classList.add("banner-hidden");
   }
 
   getCanvasCoords(e) {
@@ -252,11 +333,55 @@ class App {
   checkWinCondition() {
     if (this.puzzle && this.puzzle.isComplete()) {
       clearInterval(this.timerInterval);
+
+      // Save to leaderboard
+      const gridLabel = this.currentLevel === 1 ? "4x4" : this.currentLevel === 2 ? "5x5" : "6x6";
+      this.saveScore(`Level ${this.currentLevel} (${gridLabel})`, formatTime(this.timeRemaining));
+
+      const winMsg = document.getElementById("level-win-msg");
+      if (winMsg) {
+        winMsg.textContent = `Completed with ${formatTime(this.timeRemaining)} left!`;
+      }
+
       const levelBanner = document.getElementById("level-banner");
       if (levelBanner) {
         levelBanner.classList.remove("banner-hidden");
       }
     }
+  }
+
+  saveScore(levelStr, timeStr) {
+    const scores = JSON.parse(localStorage.getItem("vision_jigsaw_scores") || "[]");
+    scores.unshift({ level: levelStr, time: timeStr, date: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
+    if (scores.length > 5) scores.pop();
+    localStorage.setItem("vision_jigsaw_scores", JSON.stringify(scores));
+    this.renderLeaderboard();
+  }
+
+  renderLeaderboard() {
+    const container = document.getElementById("scoreboard-list");
+    if (!container) return;
+
+    const scores = JSON.parse(localStorage.getItem("vision_jigsaw_scores") || "[]");
+    if (scores.length === 0) {
+      container.innerHTML = `<div class="empty-score">No records yet</div>`;
+      return;
+    }
+
+    container.innerHTML = scores
+      .map(
+        (s) => `
+        <div class="score-entry">
+          <span class="entry-level">${s.level}</span>
+          <span class="entry-time cyan">${s.time} left</span>
+        </div>`
+      )
+      .join("");
+  }
+
+  resetLeaderboard() {
+    localStorage.removeItem("vision_jigsaw_scores");
+    this.renderLeaderboard();
   }
 
   loop(timestamp) {
@@ -272,20 +397,20 @@ class App {
     this.ctx.fillStyle = "#0c0d12";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Render repeating watermark pattern
-    if (this.watermarkPattern) {
-      this.ctx.fillStyle = this.watermarkPattern;
-      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    }
-
-    // Optional camera underlay
+    // Bright camera feed when isolation toggle is off
     if (!this.isolateSkeleton && this.video && this.video.readyState >= 2) {
       this.ctx.save();
       this.ctx.translate(this.canvas.width, 0);
       this.ctx.scale(-1, 1);
-      this.ctx.globalAlpha = 0.08;
+      this.ctx.globalAlpha = 0.55; // Clear & bright webcam feed
       this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
       this.ctx.restore();
+    }
+
+    // Render watermark
+    if (this.watermarkPattern) {
+      this.ctx.fillStyle = this.watermarkPattern;
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
     if (!this.isPaused && this.puzzle) {

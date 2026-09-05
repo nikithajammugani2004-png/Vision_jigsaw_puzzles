@@ -46,7 +46,6 @@ export class PuzzlePiece {
     ctx.save();
     ctx.clip();
 
-    // Bleed drawing margins so tabs are textured
     const bleed = Math.max(this.width, this.height) * 0.3;
     const sBleedX = (bleed / this.width) * this.sWidth;
     const sBleedY = (bleed / this.height) * this.sHeight;
@@ -171,8 +170,10 @@ export class PuzzleEngine {
     this.image = image;
     this.pieces = [];
 
-    this.gridRows = 4;
-    this.gridCols = 4;
+    // Level 1 = 4x4, Level 2 = 5x5, Level 3 = 6x6
+    const size = level === 1 ? 4 : level === 2 ? 5 : 6;
+    this.gridRows = size;
+    this.gridCols = size;
 
     this.boardWidth = Math.min(canvasWidth * 0.44, canvasHeight * 0.68);
     this.boardHeight = this.boardWidth;
@@ -203,11 +204,10 @@ export class PuzzleEngine {
         piece.targetX = this.boardX + c * pieceW;
         piece.targetY = this.boardY + r * pieceH;
 
-        // Distribute pieces nicely in the left and right gutters
         const placeLeft = Math.random() < 0.5;
         const scatterX = placeLeft
-          ? Math.random() * Math.max(20, this.boardX - pieceW - 40) + 15
-          : this.boardX + this.boardWidth + 35 + Math.random() * Math.max(20, canvasWidth - (this.boardX + this.boardWidth + pieceW + 60));
+          ? Math.random() * Math.max(15, this.boardX - pieceW - 40) + 15
+          : this.boardX + this.boardWidth + 35 + Math.random() * Math.max(15, canvasWidth - (this.boardX + this.boardWidth + pieceW + 60));
 
         const scatterY = Math.random() * (canvasHeight - pieceH - 60) + 30;
 
@@ -245,7 +245,6 @@ export class PuzzleEngine {
   }
 
   getPieceAt(x, y) {
-    // Generous bounding box covering tabs and edges
     for (let i = this.pieces.length - 1; i >= 0; i--) {
       const piece = this.pieces[i];
       if (
@@ -266,23 +265,20 @@ export class PuzzleEngine {
   updateInteraction(cursor, canvasWidth, canvasHeight) {
     if (!cursor) return;
 
-    // Normalize coordinates to actual canvas pixel space if coming as 0-1
     const cx = cursor.x <= 1.0 ? cursor.x * canvasWidth : cursor.x;
     const cy = cursor.y <= 1.0 ? cursor.y * canvasHeight : cursor.y;
 
-    // Hover state update
     for (const piece of this.pieces) {
       piece.isHovered =
         !piece.isSnapped &&
         isPointInRect({ x: cx, y: cy }, {
-          x: piece.currentX - piece.width * 0.1,
-          y: piece.currentY - piece.height * 0.1,
-          width: piece.width * 1.2,
-          height: piece.height * 1.2
+          x: piece.currentX - piece.width * 0.15,
+          y: piece.currentY - piece.height * 0.15,
+          width: piece.width * 1.3,
+          height: piece.height * 1.3
         });
     }
 
-    // Grab or Move logic
     if (cursor.isPinching) {
       if (!this.grabbedPiece) {
         const piece = this.getPieceAt(cx, cy);
@@ -291,13 +287,11 @@ export class PuzzleEngine {
           this.grabOffset.x = cx - piece.currentX;
           this.grabOffset.y = cy - piece.currentY;
 
-          // Lift to top of drawing order
           const idx = this.pieces.indexOf(piece);
           this.pieces.splice(idx, 1);
           this.pieces.push(piece);
         }
       } else {
-        // Drag piece smoothly with the pinch center
         this.grabbedPiece.currentX = cx - this.grabOffset.x;
         this.grabbedPiece.currentY = cy - this.grabOffset.y;
       }
@@ -322,7 +316,6 @@ export class PuzzleEngine {
       piece.currentY = piece.targetY;
       piece.isSnapped = true;
 
-      // Place snapped pieces under free ones
       const idx = this.pieces.indexOf(piece);
       this.pieces.splice(idx, 1);
       this.pieces.unshift(piece);
@@ -336,12 +329,10 @@ export class PuzzleEngine {
   drawBoard(ctx) {
     ctx.save();
 
-    // Outer cyan grid frame
     ctx.strokeStyle = "#38bdf8";
     ctx.lineWidth = 2.5;
     ctx.strokeRect(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
 
-    // Inner puzzle slot curves
     ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
     ctx.lineWidth = 1.2;
 
