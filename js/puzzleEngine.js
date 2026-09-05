@@ -34,10 +34,10 @@ export class PuzzlePiece {
     ctx.save();
 
     if (!this.isSnapped) {
-      ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
-      ctx.shadowBlur = 12;
-      ctx.shadowOffsetX = 3;
-      ctx.shadowOffsetY = 3;
+      ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
+      ctx.shadowBlur = this.isHovered ? 18 : 10;
+      ctx.shadowOffsetX = 4;
+      ctx.shadowOffsetY = 4;
     }
 
     ctx.beginPath();
@@ -45,8 +45,9 @@ export class PuzzlePiece {
 
     ctx.save();
     ctx.clip();
-    // Expand crop drawing slightly so the tabs receive full image texture
-    const bleed = Math.max(this.width, this.height) * 0.28;
+
+    // Bleed drawing so outward tabs receive proper texture margins
+    const bleed = Math.max(this.width, this.height) * 0.3;
     const sBleedX = (bleed / this.width) * this.sWidth;
     const sBleedY = (bleed / this.height) * this.sHeight;
 
@@ -64,10 +65,10 @@ export class PuzzlePiece {
     ctx.restore();
 
     ctx.strokeStyle = this.isSnapped
-      ? "rgba(56, 189, 248, 0.3)"
+      ? "rgba(56, 189, 248, 0.35)"
       : this.isHovered
       ? "#38bdf8"
-      : "rgba(255, 255, 255, 0.35)";
+      : "rgba(255, 255, 255, 0.4)";
     ctx.lineWidth = this.isHovered ? 2.5 : 1.5;
     ctx.stroke();
 
@@ -79,9 +80,9 @@ export class PuzzlePiece {
 
     ctx.moveTo(x, y);
 
-    // Top Edge (outward tab points UP, so -y)
+    // Top Edge
     if (this.tabs.top !== 0) {
-      const dir = this.tabs.top; // 1 = up (-), -1 = down (+)
+      const dir = this.tabs.top;
       ctx.lineTo(x + w * 0.38, y);
       ctx.bezierCurveTo(
         x + w * 0.36, y - tabSize * dir * 0.2,
@@ -96,9 +97,9 @@ export class PuzzlePiece {
     }
     ctx.lineTo(x + w, y);
 
-    // Right Edge (outward tab points RIGHT, so +x)
+    // Right Edge
     if (this.tabs.right !== 0) {
-      const dir = this.tabs.right; // 1 = right (+), -1 = left (-)
+      const dir = this.tabs.right;
       ctx.lineTo(x + w, y + h * 0.38);
       ctx.bezierCurveTo(
         x + w + tabSize * dir * 0.2, y + h * 0.36,
@@ -113,9 +114,9 @@ export class PuzzlePiece {
     }
     ctx.lineTo(x + w, y + h);
 
-    // Bottom Edge (outward tab points DOWN, so +y)
+    // Bottom Edge
     if (this.tabs.bottom !== 0) {
-      const dir = this.tabs.bottom; // 1 = down (+), -1 = up (-)
+      const dir = this.tabs.bottom;
       ctx.lineTo(x + w * 0.62, y + h);
       ctx.bezierCurveTo(
         x + w * 0.64, y + h + tabSize * dir * 0.2,
@@ -130,9 +131,9 @@ export class PuzzlePiece {
     }
     ctx.lineTo(x, y + h);
 
-    // Left Edge (outward tab points LEFT, so -x)
+    // Left Edge
     if (this.tabs.left !== 0) {
-      const dir = this.tabs.left; // 1 = left (-), -1 = right (+)
+      const dir = this.tabs.left;
       ctx.lineTo(x, y + h * 0.62);
       ctx.bezierCurveTo(
         x - tabSize * dir * 0.2, y + h * 0.64,
@@ -161,7 +162,7 @@ export class PuzzleEngine {
     this.boardWidth = 0;
     this.boardHeight = 0;
 
-    this.snapThreshold = 45;
+    this.snapThreshold = 55; // Generous snap tolerance
     this.grabbedPiece = null;
     this.grabOffset = { x: 0, y: 0 };
   }
@@ -202,10 +203,11 @@ export class PuzzleEngine {
         piece.targetX = this.boardX + c * pieceW;
         piece.targetY = this.boardY + r * pieceH;
 
+        // Spread loose pieces nicely around the lateral margins
         const placeLeft = Math.random() < 0.5;
         const scatterX = placeLeft
           ? Math.random() * Math.max(20, this.boardX - pieceW - 40) + 15
-          : this.boardX + this.boardWidth + 40 + Math.random() * Math.max(20, canvasWidth - (this.boardX + this.boardWidth + pieceW + 60));
+          : this.boardX + this.boardWidth + 35 + Math.random() * Math.max(20, canvasWidth - (this.boardX + this.boardWidth + pieceW + 60));
 
         const scatterY = Math.random() * (canvasHeight - pieceH - 60) + 30;
 
@@ -216,12 +218,11 @@ export class PuzzleEngine {
       }
     }
 
-    // Build complementary tabs: if piece has tab (+1), neighbor has socket (-1)
+    // Interlocking tabs matching
     for (let r = 0; r < this.gridRows; r++) {
       for (let c = 0; c < this.gridCols; c++) {
         const piece = this.getPieceByGrid(r, c);
 
-        // Right / Left neighbor
         if (c < this.gridCols - 1) {
           const tab = Math.random() < 0.5 ? 1 : -1;
           piece.tabs.right = tab;
@@ -229,7 +230,6 @@ export class PuzzleEngine {
           if (neighbor) neighbor.tabs.left = -tab;
         }
 
-        // Bottom / Top neighbor
         if (r < this.gridRows - 1) {
           const tab = Math.random() < 0.5 ? 1 : -1;
           piece.tabs.bottom = tab;
@@ -245,15 +245,16 @@ export class PuzzleEngine {
   }
 
   getPieceAt(x, y) {
+    // Top-to-bottom priority check with generous hit box covering tabs
     for (let i = this.pieces.length - 1; i >= 0; i--) {
       const piece = this.pieces[i];
       if (
         !piece.isSnapped &&
         isPointInRect({ x, y }, {
-          x: piece.currentX - piece.width * 0.2,
-          y: piece.currentY - piece.height * 0.2,
-          width: piece.width * 1.4,
-          height: piece.height * 1.4
+          x: piece.currentX - piece.width * 0.25,
+          y: piece.currentY - piece.height * 0.25,
+          width: piece.width * 1.5,
+          height: piece.height * 1.5
         })
       ) {
         return piece;
@@ -265,17 +266,19 @@ export class PuzzleEngine {
   updateInteraction(cursor) {
     if (!cursor) return;
 
+    // Hover indicators
     for (const piece of this.pieces) {
       piece.isHovered =
         !piece.isSnapped &&
         isPointInRect(cursor, {
-          x: piece.currentX,
-          y: piece.currentY,
-          width: piece.width,
-          height: piece.height
+          x: piece.currentX - piece.width * 0.15,
+          y: piece.currentY - piece.height * 0.15,
+          width: piece.width * 1.3,
+          height: piece.height * 1.3
         });
     }
 
+    // Pinch pickup
     if (cursor.isPinching) {
       if (!this.grabbedPiece) {
         const piece = this.getPieceAt(cursor.x, cursor.y);
@@ -284,6 +287,7 @@ export class PuzzleEngine {
           this.grabOffset.x = cursor.x - piece.currentX;
           this.grabOffset.y = cursor.y - piece.currentY;
 
+          // Lift grabbed piece immediately to top of rendering order
           const idx = this.pieces.indexOf(piece);
           this.pieces.splice(idx, 1);
           this.pieces.push(piece);
@@ -313,6 +317,7 @@ export class PuzzleEngine {
       piece.currentY = piece.targetY;
       piece.isSnapped = true;
 
+      // Lock snapped piece behind any movable pieces
       const idx = this.pieces.indexOf(piece);
       this.pieces.splice(idx, 1);
       this.pieces.unshift(piece);
@@ -326,13 +331,13 @@ export class PuzzleEngine {
   drawBoard(ctx) {
     ctx.save();
 
-    // Outer cyan glowing border
+    // Outer cyan grid border
     ctx.strokeStyle = "#38bdf8";
     ctx.lineWidth = 2.5;
     ctx.strokeRect(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
 
-    // Grid slots matching piece curves exactly
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
+    // Inner jigsaw puzzle outline slots
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
     ctx.lineWidth = 1.2;
 
     for (const piece of this.pieces) {
