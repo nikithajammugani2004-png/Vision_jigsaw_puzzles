@@ -14,6 +14,7 @@ class App {
     this.currentImage = null;
     this.isPaused = false;
     this.isolateSkeleton = false;
+    this.isLevelTransitioning = false;
 
     // Level durations in seconds
     // Level 1: 4x4 (120s), Level 2: 5x5 (180s), Level 3: 6x6 (240s)
@@ -331,7 +332,8 @@ class App {
   }
 
   checkWinCondition() {
-    if (this.puzzle && this.puzzle.isComplete()) {
+    if (this.puzzle && this.puzzle.isComplete() && !this.isLevelTransitioning) {
+      this.isLevelTransitioning = true;
       clearInterval(this.timerInterval);
 
       // Save to leaderboard
@@ -340,13 +342,20 @@ class App {
 
       const winMsg = document.getElementById("level-win-msg");
       if (winMsg) {
-        winMsg.textContent = `Completed with ${formatTime(this.timeRemaining)} left!`;
+        winMsg.textContent = `Completed with ${formatTime(this.timeRemaining)} left! Loading next level...`;
       }
 
       const levelBanner = document.getElementById("level-banner");
       if (levelBanner) {
         levelBanner.classList.remove("banner-hidden");
       }
+
+      // Automatically advance to the next level after 2 seconds
+      setTimeout(() => {
+        this.hideModals();
+        this.isLevelTransitioning = false;
+        this.nextLevel();
+      }, 2000);
     }
   }
 
