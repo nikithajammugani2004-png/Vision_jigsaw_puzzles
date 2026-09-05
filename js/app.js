@@ -203,7 +203,7 @@ class App {
 
   updateCounters() {
     const remainingEl = document.getElementById("remaining-pieces");
-    if (remainingEl && this.puzzle) {
+    if (remainingEl && this.puzzle && this.puzzle.pieces) {
       const remaining = this.puzzle.pieces.filter((p) => !p.isSnapped).length;
       remainingEl.textContent = `${remaining} / ${this.puzzle.pieces.length}`;
     }
@@ -250,7 +250,7 @@ class App {
   }
 
   onTrackerFrame() {
-    // Called when hand tracker processes a camera frame
+    // MediaPipe frame hook
   }
 
   // Mouse & Touch fallback controls

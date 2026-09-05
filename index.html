@@ -4,154 +4,131 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vision Jigsaw Studio</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>">
-  <meta name="description" content="Interactive AR Jigsaw Puzzle powered by MediaPipe hand gesture tracking.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="style.css" />
 
-  <!-- MediaPipe Hands & Camera Utils -->
+  <!-- MediaPipe CDN Dependencies -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <!-- Main Game Entry -->
+  <script type="module" src="js/app.js"></script>
 </head>
 <body>
-  <!-- Background Canvas for outer moving watermark -->
-  <canvas id="bg-watermark-canvas"></canvas>
-
-  <!-- Header matching the studio layout -->
+  <!-- Header Bar -->
   <header class="app-header">
-    <div class="header-content">
-      <div class="brand">
-        <div class="brand-icon">🧩</div>
-        <h1>Vision Jigsaw <span>Studio</span></h1>
-      </div>
-      <div class="status-pill">
-        <span class="status-dot"></span>
-        <span class="status-label">Status:</span>
-        <span id="mode-text" class="status-value">Ready</span>
-      </div>
+    <div class="brand">
+      <span class="brand-icon">🧩</span>
+      <h1>Vision Jigsaw <span class="accent">Studio</span></h1>
+    </div>
+    <div class="status-badge" id="camera-status">
+      <span class="status-dot"></span>
+      <span id="mode-text">Status: Ready</span>
     </div>
   </header>
 
-  <!-- Main Viewport with feed box and side panel -->
+  <!-- Main Viewport Layout -->
   <main class="main-container">
-    <div class="feed-container">
-      <div class="feed-box">
-        <canvas id="game-canvas"></canvas>
-        <video id="webcam-feed" playsinline></video>
+    <!-- Game Board & Webcam Canvas -->
+    <div class="canvas-wrapper">
+      <video id="webcam-feed" autoplay playsinline muted style="display: none;"></video>
+      <canvas id="bg-watermark-canvas" style="display: none;"></canvas>
+      <canvas id="game-canvas"></canvas>
 
-        <!-- Pause Overlay -->
-        <div id="pause-banner" class="banner-hidden">
-          <div class="banner-content">
-            <h2 style="color: #38bdf8; text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);">GAME PAUSED</h2>
-            <p>Timer and gestures are frozen</p>
-            <button id="resume-btn" class="modal-btn resume-btn" style="margin-top: 14px;">▶️ Resume Game</button>
+      <!-- Level Complete Modal -->
+      <div id="level-banner" class="banner banner-hidden">
+        <div class="banner-card">
+          <h2>Level Complete! 🎉</h2>
+          <p>Great job snapping all the pieces together!</p>
+          <div class="banner-actions">
+            <button id="btn-retry" class="btn btn-secondary">Replay</button>
+            <button id="btn-next-level" class="btn btn-primary">Next Level</button>
           </div>
         </div>
+      </div>
 
-        <!-- Win Overlay with Name Input -->
-        <div id="level-banner" class="banner-hidden">
-          <div class="banner-content">
-            <h2>LEVEL CLEARED!</h2>
-            <p id="clear-time-text">Completed in 00:00</p>
-            <div class="name-entry-form">
-              <input type="text" id="player-name-input" maxlength="12" placeholder="Enter your name" />
-              <button id="save-score-btn">Save Score</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Time Over Overlay -->
-        <div id="gameover-banner" class="banner-hidden">
-          <div class="banner-content">
-            <h2 style="color: #ef4444; text-shadow: 0 0 20px rgba(239, 68, 68, 0.4);">TIME'S UP!</h2>
-            <p>You ran out of time for this puzzle.</p>
-            <div class="name-entry-form" style="flex-direction: column; align-items: center;">
-              <input type="text" id="quit-name-input" maxlength="12" placeholder="Enter name to record score" />
-              <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button id="retry-btn" class="modal-btn retry-btn">Retry Level</button>
-                <button id="quit-btn" class="modal-btn quit-btn">Quit & Record</button>
-              </div>
-            </div>
+      <!-- Pause Modal -->
+      <div id="pause-banner" class="banner banner-hidden">
+        <div class="banner-card">
+          <h2>Game Paused</h2>
+          <div class="banner-actions">
+            <button id="btn-resume" class="btn btn-primary">Resume</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Side Control Panel -->
-    <aside class="controls-panel">
-      <div class="panel-section">
-        <h2 class="section-title">Goal Preview</h2>
-        <div class="reference-wrapper">
-          <img id="ref-img" alt="Target preview" />
+    <!-- Sidebar Dashboard -->
+    <aside class="sidebar">
+      <!-- Goal Preview -->
+      <section class="sidebar-section">
+        <h3>GOAL PREVIEW</h3>
+        <div class="preview-container">
+          <img id="reference-img" class="preview-thumbnail" alt="Target preview" />
         </div>
-      </div>
+      </section>
 
-      <div class="panel-section">
-        <h2 class="section-title">Game Controls</h2>
-        <div class="toggle-group">
-          <label for="isolateToggle">Isolate Skeleton Only</label>
+      <!-- Game Controls -->
+      <section class="sidebar-section">
+        <h3>GAME CONTROLS</h3>
+        <div class="control-group switch-group">
+          <span>Isolate Skeleton Only</span>
           <label class="switch">
-            <input type="checkbox" id="isolateToggle">
+            <input type="checkbox" id="skeleton-toggle" />
             <span class="slider"></span>
           </label>
         </div>
-        <div class="control-actions-row">
-          <button id="pause-btn" class="control-btn btn-pause">
-            ⏸️ Pause
-          </button>
-          <button id="restart-level-btn" class="control-btn btn-restart-level">
-            🔄 Restart Level
-          </button>
-          <button id="restart-game-btn" class="control-btn btn-restart-game">
-            ⚠️ Restart
-          </button>
+        <div class="control-actions">
+          <button id="btn-pause" class="btn btn-ctrl">⏸ Pause</button>
+          <button id="btn-restart-level" class="btn btn-ctrl">🔄 Restart Level</button>
+          <button id="btn-restart-game" class="btn btn-danger">⚠️ Restart</button>
         </div>
-      </div>
+      </section>
 
-      <div class="panel-section">
-        <h2 class="section-title">Game Info</h2>
-        <div class="stat-card">
+      <!-- Game Info Metrics -->
+      <section class="sidebar-section">
+        <h3>GAME INFO</h3>
+        <div class="stat-row">
           <span class="stat-label">Level</span>
-          <strong id="level-title">LEVEL 1</strong>
+          <span id="level-indicator" class="stat-value highlight">LEVEL 1</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-row">
           <span class="stat-label">Remaining Pieces</span>
-          <strong id="pieces-counter">0 / 0</strong>
+          <span id="remaining-pieces" class="stat-value">0 / 0</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-row">
           <span class="stat-label">Timer</span>
-          <strong id="timer-counter">00:00</strong>
+          <span id="timer-display" class="stat-value">00:00</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-row">
           <span class="stat-label">Performance</span>
-          <strong id="fps-counter">0 FPS</strong>
+          <span id="fps-display" class="stat-value">0 FPS</span>
         </div>
-      </div>
+      </section>
 
-      <!-- Live Leaderboard Section -->
-      <div class="panel-section">
-        <div class="section-header-row">
-          <h2 class="section-title">Leaderboard</h2>
-          <button id="clear-scores-btn" class="text-btn">Reset</button>
+      <!-- Leaderboard -->
+      <section class="sidebar-section">
+        <div class="section-header">
+          <h3>LEADERBOARD</h3>
+          <button id="btn-reset-leaderboard" class="link-btn">RESET</button>
         </div>
-        <div class="scoreboard-container" id="scoreboard-list">
+        <div id="scoreboard-list" class="score-container">
           <div class="empty-score">No records yet</div>
         </div>
-      </div>
+      </section>
 
-      <div class="panel-section">
-        <h2 class="section-title">How to Play</h2>
-        <ul class="help-list">
+      <!-- Instructions -->
+      <section class="sidebar-section instructions">
+        <h3>HOW TO PLAY</h3>
+        <ul>
           <li>Pinch index and thumb to grab a piece.</li>
-          <li>Drag it over its matching puzzle slot.</li>
-          <li>Release pinch to snap into place.</li>
+          <li>Move the piece towards the center grid.</li>
+          <li>Release near the matching tile to snap it in!</li>
+          <li>Mouse drag works as a fallback anytime.</li>
         </ul>
-      </div>
+      </section>
     </aside>
   </main>
-
-  <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -91,7 +91,7 @@ export class PuzzlePiece {
 
     // Right edge
     if (this.tabs.right !== 0) {
-      ctx.lineTo(x + w, y + h * 0.35);
+      ctx.lineTo(x + w * 0.35, y + h * 0.35);
       ctx.bezierCurveTo(
         x + w + tabSize * this.tabs.right, y + h * 0.35,
         x + w + tabSize * this.tabs.right, y + h * 0.65,
