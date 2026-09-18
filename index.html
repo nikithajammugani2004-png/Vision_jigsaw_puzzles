@@ -3,7 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vision Jigsaw</title>
+  <meta name="description" content="Vision Jigsaw - An AI-powered interactive computer vision jigsaw puzzle played with touchless real-time hand gestures via MediaPipe." />
+  <title>Vision Jigsaw - Gesture Controlled Puzzle</title>
+  
+  <!-- Resource Preconnections for Instant Edge Loading -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+  <link rel="preconnect" href="https://picsum.photos" crossorigin />
+  <link rel="dns-prefetch" href="https://picsum.photos" />
+
   <link rel="stylesheet" href="css/style.css" />
 
   <!-- MediaPipe Dependencies -->
@@ -20,6 +28,13 @@
     <div class="canvas-wrapper">
       <video id="webcam-feed" autoplay playsinline muted style="display: none;"></video>
       <canvas id="game-canvas"></canvas>
+
+      <!-- Initializing AI Vision Loading Overlay -->
+      <div id="loading-overlay" class="loading-overlay">
+        <div class="loader-spinner"></div>
+        <p class="loader-title">INITIALIZING VISION AI</p>
+        <p class="loader-subtitle">Starting camera & MediaPipe neural net...</p>
+      </div>
 
       <!-- Level Complete Modal -->
       <div id="level-banner" class="banner banner-hidden">

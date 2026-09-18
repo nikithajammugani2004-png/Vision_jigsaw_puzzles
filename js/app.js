@@ -1,6 +1,6 @@
 import { HandTracker } from "./handTracker.js";
 import { PuzzleEngine } from "./puzzleEngine.js?v=4";
-import { getRandomPuzzleImage } from "./imagePool.js";
+import { getRandomPuzzleImage, createFallbackPuzzlePattern } from "./imagePool.js";
 import { formatTime } from "./utils.js";
 
 class App {
@@ -64,6 +64,13 @@ class App {
 
     this.loadLevel(this.currentLevel);
     await this.tracker.init();
+
+    // Fade out and remove loading overlay for instant transition
+    const loader = document.getElementById("loading-overlay");
+    if (loader) {
+      loader.classList.add("fade-out");
+      setTimeout(() => loader.remove(), 400);
+    }
 
     requestAnimationFrame((ts) => this.loop(ts));
   }
@@ -169,7 +176,10 @@ class App {
       this.updateCounters();
       this.startCountdown();
     };
-    img.onerror = (err) => console.error("Image loading error:", err);
+    img.onerror = (err) => {
+      console.warn("External image failed to load, switching to procedural fallback:", err);
+      img.src = createFallbackPuzzlePattern(this.currentLevel);
+    };
     img.src = getRandomPuzzleImage();
   }
 
